@@ -1,0 +1,2 @@
+/** @typedef {!Object} */
+var localStorage;
