@@ -2,9 +2,9 @@
 
 A starter template for the [js13kgames competition](https://js13kgames.com/).
 
-![js13k-starter-2023](https://codyebberson.github.io/js13k-starter-2023/js13k-starter-2023.gif)
+https://github.com/codyebberson/js13k-starter-2022/assets/749094/91595ad7-9af5-4e48-9eca-1e42dbd5fd58
 
-Demo: <https://codyebberson.github.io/js13k-starter-2023/>
+Demo: <https://js13k-starter-2023.vercel.app/>
 
 Features:
 
@@ -105,8 +105,6 @@ ECT is invoked automatically during the `build` step using a custom Vite plugin.
 [Keith Clark](https://twitter.com/keithclarkcouk) and [Frank Force](https://twitter.com/KilledByAPixel) for [ZzFXM](https://keithclark.github.io/ZzFXM/)
 
 [Kang Seonghoon](https://mearie.org/) for [Roadroller](https://lifthrasiir.github.io/roadroller/)
-
-Music: [Depp from ZzFXM](https://keithclark.github.io/ZzFXM/)
 
 Graphics: [Micro Roguelike by Kenney](https://www.kenney.nl/assets/micro-roguelike)
 
