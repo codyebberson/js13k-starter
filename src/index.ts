@@ -14,19 +14,19 @@ const ENTITY_TYPE_PLAYER = 0;
 const ENTITY_TYPE_BULLET = 1;
 const ENTITY_TYPE_SNAKE = 2;
 const ENTITY_TYPE_SPIDER = 3;
+const ENTITY_TYPE_GEM = 6;
 const PLAYER_SPEED = 2;
 const BULLET_SPEED = 4;
 const SPIDER_SPEED = 1;
 
 interface Entity {
-  readonly entityType: number;
+  entityType: number;
   x: number;
   y: number;
   dx: number;
   dy: number;
   health: number;
   cooldown: number;
-  shooter?: Entity;
 }
 
 const canvas = document.querySelector('#c') as HTMLCanvasElement;
@@ -119,14 +119,13 @@ function handleInput(): void {
 function shoot(shooter: Entity, targetX: number, targetY: number, sound = false): void {
   if (shooter.cooldown <= 0) {
     const dist = Math.hypot(targetX - shooter.x, targetY - shooter.y);
-    const bullet = createEntity(
+    createEntity(
       ENTITY_TYPE_BULLET,
       shooter.x,
       shooter.y,
       ((targetX - shooter.x) / dist) * BULLET_SPEED,
       ((targetY - shooter.y) / dist) * BULLET_SPEED,
     );
-    bullet.shooter = shooter;
     shooter.cooldown = 10;
     if (sound) {
       zzfx(...[, , 90, , 0.01, 0.03, 4, , , , , , , 9, 50, 0.2, , 0.2, 0.01]);
@@ -166,19 +165,13 @@ function collisionDetection(): void {
       if (entity !== other && distance(entity, other) < 8) {
         if (
           entity.entityType === ENTITY_TYPE_BULLET &&
-          other.entityType !== ENTITY_TYPE_BULLET &&
-          other !== entity.shooter
+          (other.entityType === ENTITY_TYPE_SNAKE || other.entityType === ENTITY_TYPE_SPIDER)
         ) {
           entity.health = 0; // Kill the bullet
-          other.health -= 100; // Damage the target
-          if (other.health <= 0) {
-            zzfx(...[0.8, , 368, 0.01, 0.1, 0.3, 4, 0.31, , , , , , 1.7, , 0.4, , 0.46, 0.1]);
-            if (entity.shooter === player) {
-              score += 100;
-            }
-          }
+          other.entityType = ENTITY_TYPE_GEM; // Turn the bullet into a gem
+          zzfx(...[0.4, , 368, 0.01, 0.1, 0.3, 4, 0.31, , , , , , 1.7, , 0.4, , 0.46, 0.1]);
         }
-        if (entity === player && other.entityType !== ENTITY_TYPE_BULLET) {
+        if (entity === player && (other.entityType === ENTITY_TYPE_SNAKE || other.entityType === ENTITY_TYPE_SPIDER)) {
           entity.health -= 10; // Hurt the player
           other.health = 0; // Remove the enemy
           if (player.health <= 0) {
@@ -186,8 +179,13 @@ function collisionDetection(): void {
             zzfx(...[2.89, , 752, 0.04, 0.4, 0.44, 1, 1.39, 1, , , , 0.15, 1.3, 19, 0.9, 0.32, 0.39, 0.15, 0.31]);
           } else {
             // Just a flesh wound
-            zzfx(...[1.16, , 433, 0.01, 0.06, 0.11, 1, 2.79, 7.7, -8.6, , , , 1.7, , 0.4, , 0.54, 0.05]);
+            zzfx(...[2, , 433, 0.01, 0.06, 0.11, 1, 2.79, 7.7, -8.6, , , , 1.7, , 0.4, , 0.54, 0.05]);
           }
+        }
+        if (entity === player && other.entityType === ENTITY_TYPE_GEM) {
+          score += 100;
+          other.health = 0;
+          zzfx(...[, , 1267, 0.01, 0.09, 0.15, , 1.95, , , 412, 0.06, , , , , , 0.45, 0.02]);
         }
       }
     }
