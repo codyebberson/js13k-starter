@@ -82,7 +82,33 @@ This starter project is configured to use Closure's [ADVANCED](https://developer
 
 Sometimes you may need to provide additional hints to the Closure Compiler to achieve optimal performance. This is done using structured JSDoc comments. See [Annotating JavaScript for the Closure Compiler](https://github.com/google/closure-compiler/wiki/Annotating-JavaScript-for-the-Closure-Compiler).
 
-If `ADVANCED` mode causes problems, you can change to `SIMPLE` or `WHITESPACE_ONLY` in `vite.config.ts`.
+If `ADVANCED` mode causes problems, you can change to `SIMPLE` or `WHITESPACE_ONLY` in `vite.config.ts`:
+
+```ts
+// vite.config.ts
+
+import { js13kViteConfig } from 'js13k-vite-plugins';
+import { defineConfig } from 'vite';
+
+export default defineConfig(
+  js13kViteConfig({
+    closureOptions: {
+      compilation_level: 'SIMPLE',
+    },
+  }),
+);
+```
+
+Or, if you want to disable Google Closure Compiler entirely, you can use `closureOptions: false`:
+
+```ts
+// vite.config.ts
+
+import { js13kViteConfig } from 'js13k-vite-plugins';
+import { defineConfig } from 'vite';
+
+export default defineConfig(js13kViteConfig({ closureOptions: false }));
+```
 
 ### Roadroller
 
