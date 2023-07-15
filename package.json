@@ -12,7 +12,7 @@
     "optimize": "node optimize.js"
   },
   "devDependencies": {
-    "js13k-vite-plugins": "0.1.4",
+    "js13k-vite-plugins": "0.1.5",
     "@typescript-eslint/eslint-plugin": "6.0.0",
     "@typescript-eslint/parser": "6.0.0",
     "eslint": "8.44.0",

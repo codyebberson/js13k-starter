@@ -132,6 +132,10 @@ ECT is invoked automatically during the `build` step using a custom Vite plugin.
 
 [Kang Seonghoon](https://mearie.org/) for [Roadroller](https://lifthrasiir.github.io/roadroller/)
 
+[Rob Louie](https://github.com/roblouie) for Roadroller configuration recommendations
+
+[Salvatore Previti](https://github.com/SalvatorePreviti) for Terser configuration recommendations
+
 Graphics: [Micro Roguelike by Kenney](https://www.kenney.nl/assets/micro-roguelike)
 
 [Andrzej Mazur](https://end3r.com/) for organizing js13k
