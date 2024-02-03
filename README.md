@@ -13,7 +13,6 @@ Features:
 - [Rollup](https://rollupjs.org/guide/en/) production build
 - [ZzFX](https://github.com/KilledByAPixel/ZzFX) sound effects
 - [ZzFXM](https://github.com/keithclark/ZzFXM) music
-- [Google Closure Compiler](https://github.com/google/closure-compiler) - best JS minifier
 - [Roadroller](https://lifthrasiir.github.io/roadroller/) - best JS compressor
 - [Efficient Compression Tool](https://github.com/fhanau/Efficient-Compression-Tool) - best ZIP
 - [Prettier](https://prettier.io/)
@@ -21,8 +20,7 @@ Features:
 
 The size of this demo is 3,530 bytes, only 26% of the 13kb budget, which leaves you 9,782 bytes to add gameplay, graphics, sound, and more.
 
-> **Warning**
-> **This is an advanced starter project!** The tools will perform all kinds of crazy transformations to your code, so things will often break in mysterious ways. This project is only recommended for developers who are comfortable debugging complex tool chains.
+> **Warning** > **This is an advanced starter project!** The tools will perform all kinds of crazy transformations to your code, so things will often break in mysterious ways. This project is only recommended for developers who are comfortable debugging complex tool chains.
 
 ## Usage
 
@@ -54,6 +52,14 @@ Create a final production build:
 npm run build
 ```
 
+### Preview production build
+
+After building, you can preview the production build with Vite's built-in server:
+
+```bash
+npm run preview
+```
+
 ## Tools
 
 ### TypeScript
@@ -73,42 +79,6 @@ The project is configured with relatively strict TypeScript settings. Tweak the 
 > A build command that bundles your code with [Rollup](https://rollupjs.org/), pre-configured to output highly optimized static assets for production.
 >
 > You can learn more about the rationale behind the project in the [Why Vite](https://vitejs.dev/guide/why.html) section.
-
-### Google Closure Compiler
-
-> The [Google Closure Compiler](https://github.com/google/closure-compiler) is a tool for making JavaScript download and run faster. It is a true compiler for JavaScript. Instead of compiling from a source language to machine code, it compiles from JavaScript to better JavaScript. It parses your JavaScript, analyzes it, removes dead code and rewrites and minimizes what's left. It also checks syntax, variable references, and types, and warns about common JavaScript pitfalls.
-
-This starter project is configured to use Closure's [ADVANCED](https://developers.google.com/closure/compiler/docs/api-tutorial3) mode, which has some important restrictions to consider. See [What to Watch Out for When Using ADVANCED_OPTIMIZATIONS](https://developers.google.com/closure/compiler/docs/api-tutorial3#dangers).
-
-Sometimes you may need to provide additional hints to the Closure Compiler to achieve optimal performance. This is done using structured JSDoc comments. See [Annotating JavaScript for the Closure Compiler](https://github.com/google/closure-compiler/wiki/Annotating-JavaScript-for-the-Closure-Compiler).
-
-If `ADVANCED` mode causes problems, you can change to `SIMPLE` or `WHITESPACE_ONLY` in `vite.config.ts`:
-
-```ts
-// vite.config.ts
-
-import { js13kViteConfig } from 'js13k-vite-plugins';
-import { defineConfig } from 'vite';
-
-export default defineConfig(
-  js13kViteConfig({
-    closureOptions: {
-      compilation_level: 'SIMPLE',
-    },
-  }),
-);
-```
-
-Or, if you want to disable Google Closure Compiler entirely, you can use `closureOptions: false`:
-
-```ts
-// vite.config.ts
-
-import { js13kViteConfig } from 'js13k-vite-plugins';
-import { defineConfig } from 'vite';
-
-export default defineConfig(js13kViteConfig({ closureOptions: false }));
-```
 
 ### Roadroller
 
