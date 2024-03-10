@@ -1,4 +1,4 @@
-# JS13K Starter 2023
+# JS13K Starter
 
 A starter template for the [js13kgames competition](https://js13kgames.com/).
 
