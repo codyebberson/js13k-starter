@@ -70,8 +70,8 @@ export function zzfx(...parameters: (number | undefined)[]): AudioBufferSourceNo
  * Play an array of samples.
  */
 export function zzfxP(...samples: number[][]): AudioBufferSourceNode {
-  const buffer = zzfxX.createBuffer(samples.length, samples[0].length, zzfxR),
-    source = zzfxX.createBufferSource();
+  const buffer = zzfxX.createBuffer(samples.length, samples[0].length, zzfxR);
+  const source = zzfxX.createBufferSource();
 
   samples.map((d, i) => buffer.getChannelData(i).set(d));
   source.buffer = buffer;
@@ -103,7 +103,7 @@ export function zzfxG(
   delay = 0,
   sustainVolume = 1,
   decay = 0,
-  tremolo = 0
+  tremolo = 0,
 ): number[] {
   // init parameters
   const PI2 = Math.PI * 2;
@@ -112,16 +112,16 @@ export function zzfxG(
   const startSlide = (slide *= (500 * PI2) / sampleRate / sampleRate);
   const b = [];
 
-  let startFrequency = (frequency *= ((1 + randomness * 2 * Math.random() - randomness) * PI2) / sampleRate),
-    t = 0,
-    tm = 0,
-    i = 0,
-    j = 1,
-    r = 0,
-    c = 0,
-    s = 0,
-    f,
-    length;
+  let startFrequency = (frequency *= ((1 + randomness * 2 * Math.random() - randomness) * PI2) / sampleRate);
+  let t = 0;
+  let tm = 0;
+  let i = 0;
+  let j = 1;
+  let r = 0;
+  let c = 0;
+  let s = 0;
+  let f: number;
+  let length: number;
 
   // scale by sample rate
   attack = attack * sampleRate + 9; // minimum attack to prevent pop
@@ -160,13 +160,13 @@ export function zzfxG(
         (i < attack
           ? i / attack // attack
           : i < attack + decay // decay
-          ? 1 - ((i - attack) / decay) * (1 - sustainVolume) // decay falloff
-          : i < attack + decay + sustain // sustain
-          ? sustainVolume // sustain volume
-          : i < length - delay // release
-          ? ((length - i - delay) / release) * // release falloff
-            sustainVolume // release volume
-          : 0); // post release
+            ? 1 - ((i - attack) / decay) * (1 - sustainVolume) // decay falloff
+            : i < attack + decay + sustain // sustain
+              ? sustainVolume // sustain volume
+              : i < length - delay // release
+                ? ((length - i - delay) / release) * // release falloff
+                  sustainVolume // release volume
+                : 0); // post release
 
       s = delay
         ? s / 2 +

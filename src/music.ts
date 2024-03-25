@@ -1,4 +1,3 @@
-/* eslint-disable no-sparse-arrays */
 import { zzfxM } from './zzfxm';
 
 export const music = zzfxM(

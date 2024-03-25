@@ -3,13 +3,11 @@ import { newInput, updateInput } from './input';
 export const mouse = {
   /**
    * Mouse x coordinate.
-   * @type {number}
    */
   x: 0,
 
   /**
    * Mouse y coordinate.
-   * @type {number}
    */
   y: 0,
 

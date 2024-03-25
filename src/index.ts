@@ -1,33 +1,30 @@
-import { initKeys, KEY_A, KEY_D, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_S, KEY_UP, KEY_W, keys, updateKeys } from './keys';
-import { initMouse, mouse, updateMouse } from './mouse';
-import { music } from './music';
-import { zzfx, zzfxP } from './zzfx';
-
-const WIDTH = 480;
-const HEIGHT = 270;
-const CENTER_X = WIDTH / 2;
-const CENTER_Y = HEIGHT / 2;
-const MILLIS_PER_SECOND = 1000;
-const FRAMES_PER_SECOND = 30;
-const MILLIS_PER_FRAME = MILLIS_PER_SECOND / FRAMES_PER_SECOND;
-const ENTITY_TYPE_PLAYER = 0;
-const ENTITY_TYPE_BULLET = 1;
-const ENTITY_TYPE_SNAKE = 2;
-const ENTITY_TYPE_SPIDER = 3;
-const ENTITY_TYPE_GEM = 6;
-const PLAYER_SPEED = 2;
-const BULLET_SPEED = 4;
-const SPIDER_SPEED = 1;
-
-interface Entity {
-  entityType: number;
-  x: number;
-  y: number;
-  dx: number;
-  dy: number;
-  health: number;
-  cooldown: number;
-}
+import {
+  CENTER_X,
+  CENTER_Y,
+  FLOATY_GRAVITY,
+  GRAVITY,
+  HEIGHT,
+  PLAYER_ACCELERATION,
+  PLAYER_JUMP_POWER,
+  PLAYER_MAX_SPEED,
+  TILEMAP_HEIGHT,
+  TILEMAP_WIDTH,
+  TILE_SIZE,
+  WIDTH,
+} from './constants';
+import {
+  ENTITY_TYPE_BULLET,
+  ENTITY_TYPE_GEM,
+  ENTITY_TYPE_PLAYER,
+  ENTITY_TYPE_SNAKE,
+  ENTITY_TYPE_SPIDER,
+  Entity,
+  entities,
+} from './entity';
+import { KEY_A, KEY_D, KEY_LEFT, KEY_RIGHT, KEY_Z, initKeys, keys, updateKeys } from './keys';
+import { initMouse, updateMouse } from './mouse';
+import { getTile } from './tilemap';
+import { zzfx } from './zzfx';
 
 const canvas = document.querySelector('#c') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
@@ -35,109 +32,70 @@ const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
 const image = new Image();
 image.src = 'i.png';
 
-const entities: Entity[] = [];
+const player = new Entity(ENTITY_TYPE_PLAYER, CENTER_X, CENTER_Y);
 
-const player = createEntity(ENTITY_TYPE_PLAYER, CENTER_X, CENTER_Y);
-
-const startTime = Date.now();
-
-let time = 0;
+let windowTime = 0;
+let dt = 0;
+let gameTime = 0;
 let score = 0;
-let musicStarted = false;
-let threshold = 0;
+let viewportX = 0;
 
 initKeys(canvas);
 initMouse(canvas);
 
-function createEntity(entityType: number, x: number, y: number, dx = 0, dy = 0): Entity {
-  const e = {
-    entityType,
-    x,
-    y,
-    dx,
-    dy,
-    health: 100,
-    cooldown: 0,
-  };
-  entities.push(e);
-  return e;
-}
+function gameLoop(newTime: number): void {
+  requestAnimationFrame(gameLoop);
 
-function randomEnemy(): void {
-  const entityType = Math.random() < 0.5 ? ENTITY_TYPE_SNAKE : ENTITY_TYPE_SPIDER;
-  const theta = Math.random() * Math.PI * 2;
-  const x = CENTER_X + Math.cos(theta) * CENTER_X * 1.5;
-  const y = CENTER_Y + Math.sin(theta) * CENTER_X * 1.5;
-  createEntity(entityType, x, y);
-}
-
-function gameLoop(): void {
   if (player.health > 0) {
-    time = (Date.now() - startTime) / 1000;
-
-    // At t=0, randomness = 0.01
-    // At t=60, randomness = 0.1
-    threshold = 0.01 + time * 0.001;
-    if (Math.random() < threshold) {
-      randomEnemy();
-    }
+    dt = newTime - windowTime;
+    gameTime += dt;
 
     updateKeys();
     updateMouse();
     handleInput();
-    ai();
+    updateEntities();
     collisionDetection();
+    updateCamera();
   }
 
   render();
+  windowTime = newTime;
+  dt = 0;
 }
 
 function handleInput(): void {
-  if (!musicStarted && mouse.buttons[0].down) {
-    musicStarted = true;
-    zzfxP(...music).loop = true;
-  }
-  if (keys[KEY_UP].down || keys[KEY_W].down) {
-    player.y -= PLAYER_SPEED;
-  }
   if (keys[KEY_LEFT].down || keys[KEY_A].down) {
-    player.x -= PLAYER_SPEED;
+    player.dx -= dt * PLAYER_ACCELERATION;
+    player.direction = -1;
+  } else if (keys[KEY_RIGHT].down || keys[KEY_D].down) {
+    player.dx += dt * PLAYER_ACCELERATION;
+    player.direction = 1;
+  } else {
+    player.dx = 0;
   }
-  if (keys[KEY_DOWN].down || keys[KEY_S].down) {
-    player.y += PLAYER_SPEED;
+
+  if (keys[KEY_Z].downCount === 1 && player.grounded) {
+    player.dy = -PLAYER_JUMP_POWER;
   }
-  if (keys[KEY_RIGHT].down || keys[KEY_D].down) {
-    player.x += PLAYER_SPEED;
+
+  if (keys[KEY_Z].down) {
+    player.dy += dt * FLOATY_GRAVITY;
+  } else {
+    player.dy += dt * GRAVITY;
   }
-  if (mouse.buttons[0].down) {
-    const targetX = (mouse.x / canvas.offsetWidth) * WIDTH;
-    const targetY = (mouse.y / canvas.offsetHeight) * HEIGHT;
-    shoot(player, targetX, targetY, true);
+
+  if (player.dx > PLAYER_MAX_SPEED) {
+    player.dx = PLAYER_MAX_SPEED;
+  } else if (player.dx < -PLAYER_MAX_SPEED) {
+    player.dx = -PLAYER_MAX_SPEED;
   }
 }
 
-function shoot(shooter: Entity, targetX: number, targetY: number, sound = false): void {
-  if (shooter.cooldown <= 0) {
-    const dist = Math.hypot(targetX - shooter.x, targetY - shooter.y);
-    createEntity(
-      ENTITY_TYPE_BULLET,
-      shooter.x,
-      shooter.y,
-      ((targetX - shooter.x) / dist) * BULLET_SPEED,
-      ((targetY - shooter.y) / dist) * BULLET_SPEED,
-    );
-    shooter.cooldown = 10;
-    if (sound) {
-      zzfx(...[, , 90, , 0.01, 0.03, 4, , , , , , , 9, 50, 0.2, , 0.2, 0.01]);
-    }
-  }
-}
-
-function ai(): void {
+function updateEntities(): void {
   for (let i = entities.length - 1; i >= 0; i--) {
     const entity = entities[i];
-    entity.x += entity.dx;
-    entity.y += entity.dy;
+    entity.x += dt * entity.dx;
+    entity.y += dt * entity.dy;
     entity.cooldown--;
 
     if (entity.entityType === ENTITY_TYPE_SNAKE || entity.entityType === ENTITY_TYPE_SPIDER) {
@@ -155,14 +113,61 @@ function attackAi(e: Entity): void {
   const dx = player.x - e.x;
   const dy = player.y - e.y;
   const dist = Math.hypot(dx, dy);
-  e.x += (dx / dist) * SPIDER_SPEED;
-  e.y += (dy / dist) * SPIDER_SPEED;
+  e.x += dx / dist; // * SPIDER_SPEED;
+  e.y += dy / dist; // * SPIDER_SPEED;
 }
 
 function collisionDetection(): void {
+  collisionDetectionEntityToTile();
+  collisionDetectionEntityToEntity();
+}
+
+function collisionDetectionEntityToTile(): void {
+  for (const entity of entities) {
+    entity.grounded = false;
+
+    if (entity.dy < 0) {
+      if (getTile((entity.x + 8) / TILE_SIZE, entity.y / TILE_SIZE)) {
+        entity.y = Math.floor(entity.y / TILE_SIZE) * TILE_SIZE + TILE_SIZE;
+        entity.dy = 0;
+      }
+    }
+
+    if (entity.dy > 0) {
+      if (getTile((entity.x + 4) / TILE_SIZE, entity.y / TILE_SIZE + 1)) {
+        entity.y = Math.floor(entity.y / TILE_SIZE) * TILE_SIZE;
+        entity.dy = 0;
+        entity.grounded = true;
+      }
+      if (getTile((entity.x + 12) / TILE_SIZE, entity.y / TILE_SIZE + 1)) {
+        entity.y = Math.floor(entity.y / TILE_SIZE) * TILE_SIZE;
+        entity.dy = 0;
+        entity.grounded = true;
+      }
+    }
+
+    if (getTile(entity.x / TILE_SIZE, (entity.y + 8) / TILE_SIZE)) {
+      entity.x = Math.floor(entity.x / TILE_SIZE) * TILE_SIZE + TILE_SIZE;
+      entity.dx = 0;
+    }
+
+    if (getTile(entity.x / TILE_SIZE + 1, (entity.y + 8) / TILE_SIZE)) {
+      entity.x = Math.floor(entity.x / TILE_SIZE) * TILE_SIZE;
+      entity.dx = 0;
+    }
+
+    if (entity.y > HEIGHT - 32) {
+      entity.y = HEIGHT - 32;
+      entity.dy = 0;
+      entity.grounded = true;
+    }
+  }
+}
+
+function collisionDetectionEntityToEntity(): void {
   for (const entity of entities) {
     for (const other of entities) {
-      if (entity !== other && distance(entity, other) < 8) {
+      if (entity !== other && entity.distance(other) < 8) {
         if (
           entity.entityType === ENTITY_TYPE_BULLET &&
           (other.entityType === ENTITY_TYPE_SNAKE || other.entityType === ENTITY_TYPE_SPIDER)
@@ -192,20 +197,80 @@ function collisionDetection(): void {
   }
 }
 
-function render(): void {
-  ctx.fillStyle = '#111';
-  ctx.fillRect(0, 0, WIDTH, HEIGHT);
-
-  for (const entity of entities) {
-    ctx.drawImage(image, entity.entityType * 8, 8, 8, 8, entity.x | 0, entity.y | 0, 8, 8);
+function updateCamera(): void {
+  if (player.x - viewportX > 300) {
+    viewportX = player.x - 300;
+  } else if (viewportX + WIDTH - player.x > 300) {
+    viewportX = player.x + 300 - WIDTH;
   }
 
-  drawString('HEALTH  ' + player.health, 4, 5);
-  drawString('SCORE   ' + score, 4, 15);
-  drawString('TIME    ' + (time | 0), 4, 25);
+  if (viewportX < 0) {
+    viewportX = 0;
+  }
+}
 
-  drawString('ARROW KEYS OR WASD TO MOVE', 4, 250);
-  drawString('LEFT CLICK TO SHOOT', 4, 260);
+function render(): void {
+  clearScreen();
+  drawTileMap();
+  drawEntities();
+  drawOverlay();
+}
+
+function clearScreen(): void {
+  ctx.fillStyle = '#c0e7ec';
+  ctx.fillRect(0, 0, WIDTH, HEIGHT);
+}
+
+function drawTileMap(): void {
+  for (let y = 0; y < TILEMAP_HEIGHT; y++) {
+    for (let x = 0; x < TILEMAP_WIDTH; x++) {
+      const tile = getTile(x, y);
+      if (tile > 0) {
+        const tx = 48 + tile * TILE_SIZE;
+        const ty = 8;
+        ctx.drawImage(
+          image,
+          tx,
+          ty,
+          TILE_SIZE,
+          TILE_SIZE,
+          (x * TILE_SIZE - viewportX) | 0,
+          y * TILE_SIZE,
+          TILE_SIZE,
+          TILE_SIZE,
+        );
+      }
+    }
+  }
+}
+
+function drawEntities(): void {
+  for (const entity of entities) {
+    const walking = Math.abs(entity.dx) > 0.01;
+    if (entity.entityType === ENTITY_TYPE_PLAYER) {
+      ctx.save();
+      ctx.translate(((entity.x - viewportX) | 0) + 8, (entity.y | 0) + 8);
+      ctx.scale(entity.direction, 1);
+      const sx = !entity.grounded ? 48 : walking ? 16 + (entity.frame | 0) * 16 : 0;
+      ctx.drawImage(image, sx, 8, 16, 16, -8, -8, 16, 16);
+      ctx.restore();
+      entity.frame += dt * 0.007;
+      if (entity.frame >= 2) {
+        entity.frame = 0;
+      }
+    } else {
+      ctx.drawImage(image, entity.entityType * 8, 8, 8, 8, entity.x | 0, entity.y | 0, 8, 8);
+    }
+  }
+}
+
+function drawOverlay(): void {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, WIDTH, 16);
+
+  drawString('HEALTH  ' + player.health, 4, 6);
+  drawString('SCORE   ' + score, 150, 6);
+  drawString('TIME    ' + ((gameTime / 1000) | 0), 300, 6);
 }
 
 function drawString(str: string, x: number, y: number): void {
@@ -217,6 +282,4 @@ function drawString(str: string, x: number, y: number): void {
   }
 }
 
-const distance = (a: Entity, b: Entity): number => Math.hypot(a.x - b.x, a.y - b.y);
-
-window.setInterval(gameLoop, MILLIS_PER_FRAME);
+requestAnimationFrame(gameLoop);

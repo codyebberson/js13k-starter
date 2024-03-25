@@ -35,21 +35,21 @@ type Instrument = (number | undefined)[];
  * @returns Left and right channel sample data.
  */
 export const zzfxM = (instruments: Instrument[], patterns: Pattern[], sequence: number[], BPM = 125): number[][] => {
-  let instrumentParameters;
-  let i;
-  let j;
-  let k;
-  let note;
-  let sample;
-  let patternChannel;
+  let instrumentParameters: Instrument;
+  let i: number;
+  let j: number;
+  let k: number;
+  let note: number | undefined;
+  let sample: number;
+  let patternChannel: Channel;
   let notFirstBeat: number | undefined;
-  let stop;
+  let stop: number;
   let instrument = 0;
   let attenuation = 0;
   let outSampleOffset = 0;
-  let isSequenceEnd;
+  let isSequenceEnd: number;
   let sampleOffset = 0;
-  let nextSampleOffset;
+  let nextSampleOffset: number;
   let sampleBuffer: number[] = [];
   const leftChannelBuffer: number[] = [];
   const rightChannelBuffer: number[] = [];
@@ -76,15 +76,15 @@ export const zzfxM = (instruments: Instrument[], patterns: Pattern[], sequence: 
       nextSampleOffset =
         outSampleOffset + (patterns[patternIndex][0].length - 2 - (!notFirstBeat as unknown as number)) * beatLength;
       // for each beat in pattern, plus one extra if end of sequence
-      isSequenceEnd = (sequenceIndex == sequence.length - 1) as unknown as number;
+      isSequenceEnd = (sequenceIndex === sequence.length - 1) as unknown as number;
       for (i = 2, k = outSampleOffset; i < patternChannel.length + isSequenceEnd; notFirstBeat = ++i) {
         // <channel-note>
         note = patternChannel[i];
 
         // stop if end, different instrument or new note
         stop =
-          (i == patternChannel.length + isSequenceEnd - 1 && isSequenceEnd) ||
-          ((instrument != (patternChannel[0] || 0)) as unknown as number) | (note as number) | 0;
+          (i === patternChannel.length + isSequenceEnd - 1 && isSequenceEnd) ||
+          ((instrument !== (patternChannel[0] || 0)) as unknown as number) | (note as number) | 0;
 
         // fill buffer with samples for previous beat, most cpu intensive part
         for (
@@ -110,6 +110,7 @@ export const zzfxM = (instruments: Instrument[], patterns: Pattern[], sequence: 
               sampleCache[`i${instrument}n${note}`] ||
               // add sample to cache
               ((instrumentParameters = [...instruments[instrument]]),
+              // biome-ignore lint/style/noCommaOperator: <explanation>
               ((instrumentParameters[2] as number) *= 2 ** ((note - 12) / 12)),
               // allow negative values to stop notes
               note > 0 ? zzfxG(...instrumentParameters) : []);
