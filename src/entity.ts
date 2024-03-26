@@ -1,10 +1,7 @@
-import { CENTER_X, CENTER_Y } from './constants';
-
 export const ENTITY_TYPE_PLAYER = 0;
-export const ENTITY_TYPE_BULLET = 1;
-export const ENTITY_TYPE_SNAKE = 2;
-export const ENTITY_TYPE_SPIDER = 3;
-export const ENTITY_TYPE_GEM = 6;
+export const ENTITY_TYPE_COIN = 1;
+export const ENTITY_TYPE_JUMPPAD = 2;
+export const ENTITY_TYPE_WALKING_ENEMY = 3;
 
 export class Entity {
   entityType: number;
@@ -38,11 +35,3 @@ export class Entity {
 }
 
 export const entities: Entity[] = [];
-
-export function randomEnemy(): Entity {
-  const entityType = Math.random() < 0.5 ? ENTITY_TYPE_SNAKE : ENTITY_TYPE_SPIDER;
-  const theta = Math.random() * Math.PI * 2;
-  const x = CENTER_X + Math.cos(theta) * CENTER_X * 1.5;
-  const y = CENTER_Y + Math.sin(theta) * CENTER_X * 1.5;
-  return new Entity(entityType, x, y);
-}
