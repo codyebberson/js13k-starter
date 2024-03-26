@@ -207,7 +207,7 @@ function drawTileMap(): void {
 function drawEntities(): void {
   for (const entity of entities) {
     ctx.save();
-    ctx.translate(Math.round(entity.x - viewportX + HALF_TILE_SIZE), Math.round(entity.y + HALF_TILE_SIZE));
+    ctx.translate(Math.floor(entity.x - viewportX + HALF_TILE_SIZE), Math.floor(entity.y + HALF_TILE_SIZE));
     ctx.scale(entity.direction, 1);
     let sx = 0;
     if (entity.entityType === ENTITY_TYPE_PLAYER) {
