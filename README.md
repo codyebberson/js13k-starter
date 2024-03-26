@@ -8,7 +8,7 @@ Play live demo: <https://js13k-starter.vercel.app/>
 
 This starter project uses [js13k-vite-plugins](https://github.com/codyebberson/js13k-vite-plugins) for js13k optimized tooling. See [js13k-vite-plugins](https://github.com/codyebberson/js13k-vite-plugins) for more information about tooling and configuration.
 
-The size of this demo is about 4 13 kB, only 30% of the 13 kB budget, which leaves you 9 kB to add gameplay, graphics, sound, and more.
+The size of this demo is about 4 kB, only 30% of the 13 kB budget, which leaves you 9 kB to add gameplay, graphics, sound, and more.
 
 ## Usage
 
@@ -60,7 +60,7 @@ npm run preview
 
 [Salvatore Previti](https://github.com/SalvatorePreviti) for Terser configuration recommendations
 
-Graphics: [Pixel Platformer by Kenney](https://kenney.nl/assets/pixel-platformer)
+[Kenney](https://kenney.nl/) for [Pixel Platformer](https://kenney.nl/assets/pixel-platformer) graphics
 
 [Andrzej Mazur](https://end3r.com/) for organizing js13k
 
