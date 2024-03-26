@@ -2,13 +2,13 @@
 
 A starter template for the [js13kgames competition](https://js13kgames.com/).
 
-https://github.com/codyebberson/js13k-starter-2022/assets/749094/91595ad7-9af5-4e48-9eca-1e42dbd5fd58
+![JS13k Starter](screenshot.png)
 
-Demo: <https://js13k-starter-2023.vercel.app/>
+Play live demo: <https://js13k-starter.vercel.app/>
 
-Behind the scenes, uses [js13k-vite-plugins](https://github.com/codyebberson/js13k-vite-plugins) for js13k-optimized tooling.
+This starter project uses [js13k-vite-plugins](https://github.com/codyebberson/js13k-vite-plugins) for js13k optimized tooling. See [js13k-vite-plugins](https://github.com/codyebberson/js13k-vite-plugins) for more information about tooling and configuration.
 
-The size of this demo is 3,530 bytes, only 26% of the 13kb budget, which leaves you 9,782 bytes to add gameplay, graphics, sound, and more.
+The size of this demo is about 4 13 kB, only 30% of the 13 kB budget, which leaves you 9 kB to add gameplay, graphics, sound, and more.
 
 ## Usage
 
@@ -60,10 +60,12 @@ npm run preview
 
 [Salvatore Previti](https://github.com/SalvatorePreviti) for Terser configuration recommendations
 
-Graphics: [Micro Roguelike by Kenney](https://www.kenney.nl/assets/micro-roguelike)
+Graphics: [Pixel Platformer by Kenney](https://kenney.nl/assets/pixel-platformer)
 
 [Andrzej Mazur](https://end3r.com/) for organizing js13k
 
 ## License
 
-MIT
+Code: MIT
+
+Graphics: Creative Commons CC0 1.0 Universal
