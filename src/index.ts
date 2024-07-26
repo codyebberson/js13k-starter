@@ -27,6 +27,10 @@ import { zzfx } from './zzfx';
 const canvas = document.querySelector('#c') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
 
+const skyGradient = ctx.createLinearGradient(0, 0, 0, HEIGHT);
+skyGradient.addColorStop(0, '#dff6f5');
+skyGradient.addColorStop(1, '#a4c6f1');
+
 const image = new Image();
 image.src = 'i.png';
 
@@ -124,7 +128,8 @@ function collisionDetectionEntityToEntity(): void {
           zzfx(...coinSound);
         }
         if (entity === player && other.entityType === ENTITY_TYPE_JUMPPAD) {
-          player.y = other.y - TILE_SIZE;
+          player.y = Math.min(player.y, other.y - 8);
+          player.dx = 0;
           player.dy = -PLAYER_JUMP_POWER * 2;
           zzfx(...jumpPadSound);
         }
@@ -177,7 +182,7 @@ function render(): void {
 }
 
 function clearScreen(): void {
-  ctx.fillStyle = '#dff6f5';
+  ctx.fillStyle = skyGradient;
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 }
 
