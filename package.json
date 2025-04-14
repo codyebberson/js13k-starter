@@ -11,10 +11,10 @@
     "lint": "biome lint ."
   },
   "devDependencies": {
-    "@biomejs/biome": "1.8.3",
-    "js13k-vite-plugins": "0.3.4",
-    "terser": "5.31.1",
-    "typescript": "5.5.3",
-    "vite": "5.3.3"
+    "@biomejs/biome": "1.9.4",
+    "js13k-vite-plugins": "0.3.6",
+    "terser": "5.39.0",
+    "typescript": "5.8.3",
+    "vite": "6.2.6"
   }
 }

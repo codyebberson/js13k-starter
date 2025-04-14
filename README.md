@@ -8,7 +8,7 @@ Play live demo: <https://js13k-starter.vercel.app/>
 
 This starter project uses [js13k-vite-plugins](https://github.com/codyebberson/js13k-vite-plugins) for js13k optimized tooling. See [js13k-vite-plugins](https://github.com/codyebberson/js13k-vite-plugins) for more information about tooling and configuration.
 
-The size of this demo is about 4 kB, only 30% of the 13 kB budget, which leaves you 9 kB to add gameplay, graphics, sound, and more.
+This demo currently builds to about 4 kB. Don't let this initial size overly concern you! The magic of the js13k compression process means that the final zipped size doesn't simply grow linearly with every line of code you add – the results can be quite unpredictable. The most important thing is to focus on creating your game. Rest assured, this starter equips you with the same powerful optimization toolchain that many js13k veterans rely on.
 
 ## Usage
 
