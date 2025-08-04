@@ -6,9 +6,9 @@ import {
   PLAYER_ACCELERATION,
   PLAYER_JUMP_POWER,
   PLAYER_MAX_SPEED,
+  TILE_SIZE,
   TILEMAP_HEIGHT,
   TILEMAP_WIDTH,
-  TILE_SIZE,
   WIDTH,
 } from './constants';
 import {
@@ -18,7 +18,7 @@ import {
   ENTITY_TYPE_WALKING_ENEMY,
   entities,
 } from './entity';
-import { KEY_A, KEY_D, KEY_LEFT, KEY_RIGHT, KEY_Z, initKeys, keys, updateKeys } from './keys';
+import { initKeys, KEY_A, KEY_D, KEY_LEFT, KEY_RIGHT, KEY_Z, keys, updateKeys } from './keys';
 import { initMouse, updateMouse } from './mouse';
 import { coinSound, hurtSound, jumpPadSound, jumpSound } from './sounds';
 import { collisionDetectionEntityToTile, getTile, initTileMap } from './tilemap';

@@ -110,7 +110,6 @@ export const zzfxM = (instruments: Instrument[], patterns: Pattern[], sequence: 
               sampleCache[`i${instrument}n${note}`] ||
               // add sample to cache
               ((instrumentParameters = [...instruments[instrument]]),
-              // biome-ignore lint/style/noCommaOperator: <explanation>
               ((instrumentParameters[2] as number) *= 2 ** ((note - 12) / 12)),
               // allow negative values to stop notes
               note > 0 ? zzfxG(...instrumentParameters) : []);

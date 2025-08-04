@@ -1,4 +1,4 @@
-import { newInput, updateInput, type Input } from './input';
+import { type Input, newInput, updateInput } from './input';
 
 export const KEY_LEFT = 37;
 export const KEY_UP = 38;

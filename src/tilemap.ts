@@ -1,4 +1,4 @@
-import { HEIGHT, TILEMAP_HEIGHT, TILEMAP_WIDTH, TILE_SIZE } from './constants';
+import { HEIGHT, TILE_SIZE, TILEMAP_HEIGHT, TILEMAP_WIDTH } from './constants';
 import {
   ENTITY_TYPE_COIN,
   ENTITY_TYPE_JUMPPAD,
@@ -45,7 +45,7 @@ const tileMapSource: string[] = [
 const tileMap: number[][] = [];
 
 export function initTileMap(): Entity {
-  let player: Entity | undefined = undefined;
+  let player: Entity | undefined;
 
   for (let y = 0; y < TILEMAP_HEIGHT; y++) {
     const row = [];
