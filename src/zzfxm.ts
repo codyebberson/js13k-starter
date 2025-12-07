@@ -5,7 +5,6 @@
 import { zzfxG, zzfxR } from './zzfx';
 
 /**
- * @typedef Channel
  * @type {Array.<Number>}
  * @property {Number} 0 - Channel instrument
  * @property {Number} 1 - Channel panning (-1 to +1)
@@ -14,13 +13,11 @@ import { zzfxG, zzfxR } from './zzfx';
 type Channel = (number | undefined)[]; //[number, number, number];
 
 /**
- * @typedef Pattern
  * @type {Array.<Channel>}
  */
 type Pattern = Channel[];
 
 /**
- * @typedef Instrument
  * @type {Array.<Number>} ZzFX sound parameters
  */
 type Instrument = (number | undefined)[];
@@ -34,7 +31,12 @@ type Instrument = (number | undefined)[];
  * @param [speed=125] - Playback speed of the song (in BPM).
  * @returns Left and right channel sample data.
  */
-export const zzfxM = (instruments: Instrument[], patterns: Pattern[], sequence: number[], BPM = 125): number[][] => {
+export const zzfxM = (
+  instruments: Instrument[],
+  patterns: Pattern[],
+  sequence: number[],
+  BPM = 125
+): number[][] => {
   let instrumentParameters: Instrument;
   let i: number;
   let j: number;
@@ -56,7 +58,7 @@ export const zzfxM = (instruments: Instrument[], patterns: Pattern[], sequence: 
   let channelIndex = 0;
   let panning = 0;
   let hasMore = 1;
-  const sampleCache: Record<string, any> = {};
+  const sampleCache: Record<string, number[]> = {};
   const beatLength = ((zzfxR / BPM) * 60) >> 2;
 
   // for each channel in order until there are no more
@@ -65,7 +67,9 @@ export const zzfxM = (instruments: Instrument[], patterns: Pattern[], sequence: 
     sampleBuffer = [(hasMore = notFirstBeat = outSampleOffset = 0)];
 
     // for each pattern in sequence
-    sequence.map((patternIndex, sequenceIndex) => {
+    for (let sequenceIndex = 0; sequenceIndex < sequence.length; sequenceIndex++) {
+      const patternIndex = sequence[sequenceIndex];
+
       // get pattern for current channel, use empty 1 note pattern if none found
       patternChannel = patterns[patternIndex][channelIndex] || [0, 0, 0];
 
@@ -74,10 +78,15 @@ export const zzfxM = (instruments: Instrument[], patterns: Pattern[], sequence: 
 
       // get next offset, use the length of first channel
       nextSampleOffset =
-        outSampleOffset + (patterns[patternIndex][0].length - 2 - (!notFirstBeat as unknown as number)) * beatLength;
+        outSampleOffset +
+        (patterns[patternIndex][0].length - 2 - (!notFirstBeat as unknown as number)) * beatLength;
       // for each beat in pattern, plus one extra if end of sequence
       isSequenceEnd = (sequenceIndex === sequence.length - 1) as unknown as number;
-      for (i = 2, k = outSampleOffset; i < patternChannel.length + isSequenceEnd; notFirstBeat = ++i) {
+      for (
+        i = 2, k = outSampleOffset;
+        i < patternChannel.length + isSequenceEnd;
+        notFirstBeat = ++i
+      ) {
         // <channel-note>
         note = patternChannel[i];
 
@@ -91,7 +100,9 @@ export const zzfxM = (instruments: Instrument[], patterns: Pattern[], sequence: 
           j = 0;
           j < beatLength && notFirstBeat;
           // fade off attenuation at end of beat if stopping note, prevents clicking
-          j++ > beatLength - 99 && stop && (attenuation += ((attenuation < 1) as unknown as number) / 99)
+          j++ > beatLength - 99 &&
+          stop &&
+          (attenuation += ((attenuation < 1) as unknown as number) / 99)
         ) {
           // copy sample to stereo buffers with panning
           sample = ((1 - attenuation) * sampleBuffer[sampleOffset++]) / 2 || 0;
@@ -106,7 +117,9 @@ export const zzfxM = (instruments: Instrument[], patterns: Pattern[], sequence: 
           panning = patternChannel[1] || 0;
           if ((note |= 0)) {
             // get cached sample
-            sampleBuffer = sampleCache[`i${(instrument = patternChannel[(sampleOffset = 0)] || 0)}n${note}`] =
+            sampleBuffer = sampleCache[
+              `i${(instrument = patternChannel[(sampleOffset = 0)] || 0)}n${note}`
+            ] =
               sampleCache[`i${instrument}n${note}`] ||
               // add sample to cache
               ((instrumentParameters = [...instruments[instrument]]),
@@ -119,7 +132,7 @@ export const zzfxM = (instruments: Instrument[], patterns: Pattern[], sequence: 
 
       // update the sample offset
       outSampleOffset = nextSampleOffset;
-    });
+    }
   }
 
   return [leftChannelBuffer, rightChannelBuffer];
