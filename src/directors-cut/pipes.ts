@@ -1,7 +1,7 @@
-import { MAP_HEIGHT, MAP_WIDTH, PLAYER_HEIGHT, PLAYER_WIDTH, TILE_SIZE } from './constants';
-import { getTile, hubRadiusTiles, PORTAL_CELLS, TILE_WALL, TILE_WHITE } from './map';
-import { BLUE, GREEN, ORANGE, RAINBOW_COLORS, VIOLET } from './palette';
-import { createSprite } from './sprites';
+import { MAP_HEIGHT, MAP_WIDTH, PLAYER_HEIGHT, PLAYER_WIDTH, TILE_SIZE } from '../constants';
+import { getTile, hubRadiusTiles, PORTAL_CELLS, TILE_WALL, TILE_WHITE } from '../map';
+import { BLUE, GREEN, ORANGE, RAINBOW_COLORS, VIOLET } from '../palette';
+import { createSprite } from '../sprites';
 
 export interface HitBox {
   x: number;
@@ -141,7 +141,19 @@ function pipeSprite(
   rot90: number,
   color: number
 ): HTMLCanvasElement {
-  return createSprite(atlas.x, atlas.y, atlas.w, atlas.h, flipH, flipV, rot90, PIPE_STRIPE, color);
+  return createSprite(
+    atlas.x,
+    atlas.y,
+    atlas.w,
+    atlas.h,
+    flipH,
+    flipV,
+    rot90,
+    PIPE_STRIPE,
+    color,
+    0,
+    true
+  );
 }
 
 function bakeKit(color: number): PipeKit {

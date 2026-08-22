@@ -1,7 +1,7 @@
 import { PLAYER_HEIGHT } from './constants';
 import { bakeText, drawText, FONT_GAP, FONT_H, FONT_W, measureText } from './font';
 import { mouse, wasPressed } from './input';
-import { RAINBOW_COLORS } from './palette';
+import { currentColor, RAINBOW_COLORS } from './palette';
 
 const LAYOUT_LIST = 0;
 const LAYOUT_CARDS = 1;
@@ -26,6 +26,10 @@ let headingX = 0;
 let headingY = 0;
 let subX = 0;
 let subY = 0;
+let storyText = '';
+let storyLines: HTMLCanvasElement[] = [];
+let storyY = 0;
+let storyBakeW = 0;
 
 export function isUiOpen(): boolean {
   return onPick !== null;
@@ -37,10 +41,13 @@ export function closeUi(): void {
   subheading = null;
   labels = [];
   bodies = [];
+  storyText = '';
+  storyLines = [];
+  storyBakeW = 0;
   rects.length = 0;
 }
 
-/** ROYGBIV per letter; 1px black outline for contrast on the plaza. */
+/** ROYGBIV per letter; 1px black outline. Letters follow the live palette lock. */
 function bakeRainbowTitle(text: string, scale: number): HTMLCanvasElement {
   const { w, h } = measureText(text, scale);
   const canvas = document.createElement('canvas');
@@ -53,22 +60,51 @@ function bakeRainbowTitle(text: string, scale: number): HTMLCanvasElement {
     if (ch === ' ') {
       continue;
     }
+    const fill = currentColor(RAINBOW_COLORS[colorIndex % 7]);
     const ox = 1 + i * (FONT_W + FONT_GAP) * scale;
     drawText(ctx, ch, ox - 1, 1, '#000', scale);
     drawText(ctx, ch, ox + 1, 1, '#000', scale);
     drawText(ctx, ch, ox, 0, '#000', scale);
     drawText(ctx, ch, ox, 2, '#000', scale);
-    drawText(
-      ctx,
-      ch,
-      ox,
-      1,
-      '#' + RAINBOW_COLORS[colorIndex % 7].toString(16).padStart(6, '0'),
-      scale
-    );
+    drawText(ctx, ch, ox, 1, '#' + fill.toString(16).padStart(6, '0'), scale);
     colorIndex++;
   }
   return canvas;
+}
+
+function wrap(text: string, maxW: number): string[] {
+  const lines: string[] = [];
+  let line = '';
+  for (const word of text.split(' ')) {
+    const next = line ? line + ' ' + word : word;
+    if (line && measureText(next).w > maxW) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = next;
+    }
+  }
+  if (line) {
+    lines.push(line);
+  }
+  return lines;
+}
+
+/** Hide list buttons but keep the heading (title Start drain). */
+export function hideMenuButtons(): void {
+  labels = [];
+  bodies = [];
+  rects.length = 0;
+}
+
+export function rebakeRainbowTitle(): void {
+  heading = bakeRainbowTitle('DYE HARD', 3);
+}
+
+export function setTitleStory(text: string): void {
+  storyText = text.toUpperCase();
+  storyLines = [];
+  storyBakeW = 0;
 }
 
 export function openMenu(
@@ -100,11 +136,12 @@ export function openCards(
   titleColor = '#fff'
 ): void {
   layout = LAYOUT_CARDS;
-  heading = title ? bakeText(title, titleColor) : null;
+  const cardScale = 1;
+  heading = title ? bakeText(title, titleColor, cardScale) : null;
   subheading = null;
   headingTop = false;
-  labels = items.map((item) => bakeText(item.title));
-  bodies = items.map((item) => bakeText(item.body));
+  labels = items.map((item) => bakeText(item.title, '#fff', cardScale));
+  bodies = items.map((item) => bakeText(item.body, '#fff', cardScale));
   selected = 0;
   onPick = pick;
 }
@@ -121,6 +158,20 @@ function layoutUi(viewWidth: number, viewHeight: number): void {
   subY = 0;
   const n = labels.length;
   if (n === 0) {
+    if (heading) {
+      headingX = (viewWidth - heading.width) >> 1;
+      headingY = headingTop
+        ? ((viewHeight - PLAYER_HEIGHT) >> 1) - 8 - heading.height
+        : (viewHeight - heading.height) >> 1;
+    }
+    if (storyText && headingTop) {
+      const maxW = Math.max(40, viewWidth - 16);
+      if (storyBakeW !== maxW) {
+        storyBakeW = maxW;
+        storyLines = wrap(storyText, maxW).map((line) => bakeText(line));
+      }
+      storyY = ((viewHeight - PLAYER_HEIGHT) >> 1) + PLAYER_HEIGHT + 8;
+    }
     return;
   }
 
@@ -165,27 +216,35 @@ function layoutUi(viewWidth: number, viewHeight: number): void {
     return;
   }
 
-  const gap = 3;
-  const outer = 6;
-  const innerPad = 3;
-  let cardH = innerPad * 2 + 2 + FONT_H;
-  if (bodies.length) {
-    cardH += 3 + FONT_H;
+  const gap = 4;
+  const outer = 8;
+  const innerPad = 4;
+  const titleH = labels[0].height;
+  const bodyH = bodies[0] ? bodies[0].height : 0;
+  const cardH = innerPad * 2 + 2 + titleH + (bodyH ? 4 + bodyH : 0);
+  let inner = 48;
+  for (let i = 0; i < n; i++) {
+    if (labels[i].width > inner) {
+      inner = labels[i].width;
+    }
+    if (bodies[i] && bodies[i].width > inner) {
+      inner = bodies[i].width;
+    }
   }
-  const cardW = Math.max(36, ((viewWidth - outer * 2 - gap * (n - 1)) / n) | 0);
-  const totalW = n * cardW + (n - 1) * gap;
-  const x0 = (viewWidth - totalW) >> 1;
+  const cardW = Math.min(viewWidth - outer * 2, inner + innerPad * 2 + 2);
+  const blockH = n * cardH + (n - 1) * gap;
+  const x = (viewWidth - cardW) >> 1;
   let y: number;
   if (heading) {
     headingX = (viewWidth - heading.width) >> 1;
-    const total = heading.height + 6 + cardH;
+    const total = heading.height + 8 + blockH;
     headingY = (viewHeight - total) >> 1;
-    y = headingY + heading.height + 6;
+    y = headingY + heading.height + 8;
   } else {
-    y = (viewHeight - cardH) >> 1;
+    y = (viewHeight - blockH) >> 1;
   }
   for (let i = 0; i < n; i++) {
-    rects.push({ x: x0 + i * (cardW + gap), y, w: cardW, h: cardH });
+    rects.push({ x, y: y + i * (cardH + gap), w: cardW, h: cardH });
   }
 }
 
@@ -196,6 +255,9 @@ export function updateUi(viewWidth: number, viewHeight: number): void {
   }
   layoutUi(viewWidth, viewHeight);
   const n = labels.length;
+  if (n === 0) {
+    return;
+  }
   if (
     wasPressed('ArrowLeft') ||
     wasPressed('KeyA') ||
@@ -242,6 +304,27 @@ export function drawUi(ctx: CanvasRenderingContext2D, viewWidth: number, viewHei
     ctx.drawImage(subheading, subX, subY);
   }
 
+  if (storyLines.length) {
+    let inner = 0;
+    for (const line of storyLines) {
+      if (line.width > inner) {
+        inner = line.width;
+      }
+    }
+    const pad = 3;
+    const gap = 2;
+    const blockH = storyLines.length * (FONT_H + gap) - gap + pad * 2;
+    const blockW = inner + pad * 2;
+    const bx = (viewWidth - blockW) >> 1;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(bx, storyY, blockW, blockH);
+    let ly = storyY + pad;
+    for (const line of storyLines) {
+      ctx.drawImage(line, (viewWidth - line.width) >> 1, ly);
+      ly += FONT_H + gap;
+    }
+  }
+
   for (let i = 0; i < rects.length; i++) {
     const r = rects[i];
     ctx.fillStyle = i === selected ? '#fff' : '#747474';
@@ -253,12 +336,13 @@ export function drawUi(ctx: CanvasRenderingContext2D, viewWidth: number, viewHei
     ctx.beginPath();
     ctx.rect(r.x + 2, r.y + 2, r.w - 4, r.h - 4);
     ctx.clip();
+    const bodyH = bodies[i] ? bodies[i].height : 0;
     const titleX = r.x + ((r.w - labels[i].width) >> 1);
-    const titleY = r.y + ((r.h - labels[i].height - (bodies[i] ? FONT_H + 3 : 0)) >> 1);
+    const titleY = r.y + ((r.h - labels[i].height - (bodyH ? bodyH + 4 : 0)) >> 1);
     ctx.drawImage(labels[i], titleX, titleY);
     if (bodies[i]) {
       const bodyX = r.x + ((r.w - bodies[i].width) >> 1);
-      ctx.drawImage(bodies[i], bodyX, titleY + FONT_H + 3);
+      ctx.drawImage(bodies[i], bodyX, titleY + labels[i].height + 4);
     }
     ctx.restore();
   }

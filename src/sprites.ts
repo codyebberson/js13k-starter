@@ -15,6 +15,8 @@ interface BakedSprite {
   recolorTo: number;
   /** Walk-frame leg cut (§3 Animation): 0 = none, 1 = left leg, 2 = right leg. */
   legCut: number;
+  /** If true, `recolorTo` skips the locked-palette remap (pipe stripes). */
+  keepRecolor: boolean;
 }
 
 let sheet: ImageData;
@@ -55,7 +57,8 @@ export function createSprite(
   rot90 = 0,
   recolorFrom = 0,
   recolorTo = 0,
-  legCut = 0
+  legCut = 0,
+  keepRecolor = false
 ): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = rot90 % 2 === 0 ? width : height;
@@ -72,6 +75,7 @@ export function createSprite(
     recolorFrom,
     recolorTo,
     legCut,
+    keepRecolor,
   };
   bake(sprite);
   bakedSprites.push(sprite);
@@ -106,6 +110,7 @@ function bake(sprite: BakedSprite): void {
     recolorFrom,
     recolorTo,
     legCut,
+    keepRecolor,
   } = sprite;
   const outWidth = canvas.width;
   const outHeight = canvas.height;
@@ -137,7 +142,7 @@ function bake(sprite: BakedSprite): void {
       if (footOutline) {
         rgb = 0;
       } else if (recolorTo && rgb === recolorFrom) {
-        rgb = recolorTo;
+        rgb = keepRecolor ? recolorTo : currentColor(recolorTo);
       } else {
         rgb = currentColor(rgb);
       }

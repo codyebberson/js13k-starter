@@ -1,7 +1,9 @@
+html,
 body {
   margin: 0;
   overflow: hidden;
   background: #1a1a1f;
+  touch-action: none;
 }
 
 canvas {
@@ -9,4 +11,5 @@ canvas {
   top: 0;
   left: 0;
   image-rendering: pixelated;
+  touch-action: none;
 }

@@ -1,7 +1,7 @@
-import { MAP_HEIGHT, MAP_WIDTH, TILE_SIZE } from './constants';
+import { TILE_H, TILE_W } from './constants';
 import { cssColor, RAINBOW_COLORS, rainbowShade } from './palette';
 
-/** 10×10 map of portal cells (red pixels); (0,0) is top-left. Cardinals on midlines. */
+/** 10×10 map of portal cells — Director's Cut / unused this pass. */
 export const PORTAL_CELLS: [number, number][] = [
   [0, 0],
   [5, 0],
@@ -12,11 +12,27 @@ export const PORTAL_CELLS: [number, number][] = [
   [5, 9],
 ];
 
-/** Ground tiles 0–6 match RAINBOW_COLORS / pipe kits. */
+/** Ground tiles 0–6 match RAINBOW_COLORS (unused bake helpers this pass). */
 export const TILE_WHITE = 7;
 export const TILE_WALL = 8;
 
-const tiles = new Uint8Array(MAP_WIDTH * MAP_HEIGHT);
+/**
+ * Vein overlay — independent of TILE_W / TILE_H.
+ *   VEIN_W / VEIN_H — stamp pixels (2:1 is 6×12)
+ *   VEIN_WIDTH / VEIN_GAP — band thickness and spacing, in vein-cells
+ *   VEIN_STEP_X / VEIN_STEP_Y — diagonal in vein-cell space
+ */
+export const VEIN_W = 6;
+export const VEIN_H = 12;
+const VEIN_ALPHA = 0.25;
+const VEIN_WIDTH = 1;
+const VEIN_GAP = 8;
+const VEIN_STEP_X = 1;
+const VEIN_STEP_Y = 1;
+const VEIN_STRIDE = VEIN_WIDTH + VEIN_GAP;
+const VEIN_PERIOD = VEIN_STRIDE * 7;
+
+const veinCanvases: HTMLCanvasElement[] = [];
 
 function mulberry32(seed: number): () => number {
   let state = seed;
@@ -29,90 +45,26 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-function setTile(tx: number, ty: number, tile: number): void {
-  if (tx >= 0 && ty >= 0 && tx < MAP_WIDTH && ty < MAP_HEIGHT) {
-    tiles[ty * MAP_WIDTH + tx] = tile;
-  }
-}
-
-export function getTile(tx: number, ty: number): number {
-  if (tx < 0 || ty < 0 || tx >= MAP_WIDTH || ty >= MAP_HEIGHT) {
-    return TILE_WALL;
-  }
-  return tiles[ty * MAP_WIDTH + tx];
+/** Always white plaza ground. Veins are a separate overlay. */
+export function getTile(_tx: number, _ty: number): number {
+  return TILE_WHITE;
 }
 
 /** Centered solid box for this tile, or null if walkable. */
 export function getTileSolid(
-  tx: number,
-  ty: number
+  _tx: number,
+  _ty: number
 ): { x: number; y: number; w: number; h: number } | null {
-  if (getTile(tx, ty) !== TILE_WALL) {
-    return null;
-  }
-  return {
-    x: tx * TILE_SIZE,
-    y: ty * TILE_SIZE,
-    w: TILE_SIZE,
-    h: TILE_SIZE,
-  };
+  return null;
 }
 
-/** Lumpy plaza radius in tiles — 3- and 5-lobe wobble, not a clean circle. */
+/** Lumpy plaza radius in tiles — Director's Cut / unused this pass. */
 export function hubRadiusTiles(ang: number): number {
   return 9 * (1 + 0.14 * Math.sin(ang * 3) + 0.09 * Math.sin(ang * 5 + 0.8));
 }
 
-function nearestPipeColor(angle: number, portalAngles: number[]): number {
-  let best = 0;
-  let bestDiff = Math.PI * 2;
-  for (let i = 0; i < portalAngles.length; i++) {
-    let diff = Math.abs(angle - portalAngles[i]);
-    if (diff > Math.PI) {
-      diff = Math.PI * 2 - diff;
-    }
-    if (diff < bestDiff) {
-      bestDiff = diff;
-      best = i;
-    }
-  }
-  return best;
-}
-
-/**
- * Seven pizza slices aimed at the portals, meeting a lumpy white hub.
- * Edge ring is a solid wall.
- */
-export function generateMap(): void {
-  const midX = MAP_WIDTH / 2;
-  const midY = MAP_HEIGHT / 2;
-  const portalAngles = PORTAL_CELLS.map(([gx, gy]) => {
-    const px = (gx + 0.5) * (MAP_WIDTH / 10) - midX;
-    const py = (gy + 0.5) * (MAP_HEIGHT / 10) - midY;
-    return Math.atan2(py, px);
-  });
-
-  for (let ty = 0; ty < MAP_HEIGHT; ty++) {
-    for (let tx = 0; tx < MAP_WIDTH; tx++) {
-      const dx = tx + 0.5 - midX;
-      const dy = ty + 0.5 - midY;
-      const dist = Math.hypot(dx, dy);
-      const ang = Math.atan2(dy, dx);
-      if (dist < hubRadiusTiles(ang)) {
-        setTile(tx, ty, TILE_WHITE);
-      } else {
-        setTile(tx, ty, nearestPipeColor(ang, portalAngles));
-      }
-    }
-  }
-
-  for (let i = 0; i < MAP_WIDTH; i++) {
-    setTile(i, 0, TILE_WALL);
-    setTile(i, MAP_HEIGHT - 1, TILE_WALL);
-    setTile(0, i, TILE_WALL);
-    setTile(MAP_WIDTH - 1, i, TILE_WALL);
-  }
-}
+/** No-op: the live map is infinite white. Slice generation stays in git. */
+export function generateMap(): void {}
 
 export const tileCanvases: HTMLCanvasElement[] = [];
 /** Palette state from before the current color wave. */
@@ -124,8 +76,8 @@ export function snapshotTiles(): void {
     let canvas = tileCanvasesPrev[tile];
     if (!canvas) {
       canvas = document.createElement('canvas');
-      canvas.width = TILE_SIZE;
-      canvas.height = TILE_SIZE;
+      canvas.width = TILE_W;
+      canvas.height = TILE_H;
       tileCanvasesPrev[tile] = canvas;
     }
     const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
@@ -138,35 +90,102 @@ export function bakeTiles(): void {
     let canvas = tileCanvases[tile];
     if (!canvas) {
       canvas = document.createElement('canvas');
-      canvas.width = TILE_SIZE;
-      canvas.height = TILE_SIZE;
       tileCanvases[tile] = canvas;
     }
+    canvas.width = TILE_W;
+    canvas.height = TILE_H;
     const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
     if (tile === TILE_WALL) {
       paintWall(ctx);
     } else if (tile === TILE_WHITE) {
-      paintGround(ctx, '#ffffff', '#cecece');
+      paintGround(ctx, TILE_W, TILE_H, '#ffffff', '#cecece');
     } else {
-      paintGround(ctx, cssColor(rainbowShade(tile, 0.8)), cssColor(RAINBOW_COLORS[tile]));
+      paintGround(
+        ctx,
+        TILE_W,
+        TILE_H,
+        cssColor(rainbowShade(tile, 0.8)),
+        cssColor(RAINBOW_COLORS[tile])
+      );
     }
+  }
+  for (let color = 0; color < 7; color++) {
+    let canvas = veinCanvases[color];
+    if (!canvas) {
+      canvas = document.createElement('canvas');
+      veinCanvases[color] = canvas;
+    }
+    canvas.width = VEIN_W;
+    canvas.height = VEIN_H;
+    const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+    paintGround(
+      ctx,
+      VEIN_W,
+      VEIN_H,
+      cssColor(rainbowShade(color, 0.8)),
+      cssColor(RAINBOW_COLORS[color])
+    );
   }
 }
 
-function paintGround(ctx: CanvasRenderingContext2D, fill: string, highlight: string): void {
+function getVein(vx: number, vy: number): number {
+  const d =
+    (((vx * VEIN_STEP_X + vy * VEIN_STEP_Y) % VEIN_PERIOD) + VEIN_PERIOD) % VEIN_PERIOD;
+  if (d % VEIN_STRIDE < VEIN_WIDTH) {
+    return (d / VEIN_STRIDE) | 0;
+  }
+  return -1;
+}
+
+/** Vein stamps on their own grid, drawn after white ground. */
+export function drawVeins(
+  ctx: CanvasRenderingContext2D,
+  cameraX: number,
+  cameraY: number,
+  viewWidth: number,
+  viewHeight: number
+): void {
+  const x0 = Math.floor(cameraX / VEIN_W);
+  const y0 = Math.floor(cameraY / VEIN_H);
+  const x1 = Math.floor((cameraX + viewWidth) / VEIN_W);
+  const y1 = Math.floor((cameraY + viewHeight) / VEIN_H);
+  ctx.globalAlpha = VEIN_ALPHA;
+  for (let vy = y0; vy <= y1; vy++) {
+    for (let vx = x0; vx <= x1; vx++) {
+      const color = getVein(vx, vy);
+      if (color < 0) {
+        continue;
+      }
+      ctx.drawImage(
+        veinCanvases[color],
+        Math.floor(vx * VEIN_W - cameraX),
+        Math.floor(vy * VEIN_H - cameraY)
+      );
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+function paintGround(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  fill: string,
+  highlight: string
+): void {
   ctx.fillStyle = fill;
-  ctx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+  ctx.fillRect(0, 0, w, h);
   ctx.fillStyle = highlight;
   const random = mulberry32(7);
   for (let i = 0; i < 8; i++) {
-    ctx.fillRect(Math.floor(random() * TILE_SIZE), Math.floor(random() * TILE_SIZE), 2, 1);
+    ctx.fillRect(Math.floor(random() * w), Math.floor(random() * h), 2, 1);
   }
 }
 
 function paintWall(ctx: CanvasRenderingContext2D): void {
   ctx.fillStyle = '#747474';
-  ctx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+  ctx.fillRect(0, 0, TILE_W, TILE_H);
   ctx.fillStyle = '#cecece';
   const inset = 2;
-  ctx.fillRect(inset, inset, TILE_SIZE - inset * 2, TILE_SIZE - inset * 2);
+  ctx.fillRect(inset, inset, TILE_W - inset * 2, TILE_H - inset * 2);
 }

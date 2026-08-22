@@ -1,35 +1,28 @@
 import { drawCombat, updateCombat } from './combat';
 import {
-  MAP_HEIGHT,
-  MAP_WIDTH,
   PLAYER_HEIGHT,
   PLAYER_WIDTH,
   TARGET_VIEW_HEIGHT,
-  TILE_SIZE,
+  TILE_H,
+  TILE_W,
   WALK_FRAME_MS,
 } from './constants';
-import { drawCutsceneDrain, drawCutsceneUi, drawCutsceneWorld, updateCutscene } from './cutscene';
 import { bakeEnemyTypes, drawEnemies, updateEnemies } from './enemies';
+import { bakeFlowers, drawFlowers } from './flowers';
 import { drawExplosions, updateExplosions } from './fx';
 import { bakeHud, drawHud } from './hud';
-import { clearPressedKeys, initInput } from './input';
-import { bakeTiles, generateMap, getTile, tileCanvases, tileCanvasesPrev } from './map';
+import { clearPressedKeys, drawStick, initInput, setStickEnabled, setViewSize } from './input';
+import { bakeTiles, drawVeins, generateMap, getTile, tileCanvases } from './map';
 import {
-  colorWave,
   drawOverlays,
   initOverlays,
-  isSequenceActive,
   isWorldFrozen,
-  SCENE_CUTSCENE,
+  runTime,
   SCENE_RUN,
   scene,
-  startPendingDeathSequence,
-  tickColorWave,
   updateOverlays,
-  updateSequence,
 } from './overlays';
 import { bakePickups, drawPickups, updatePickups } from './pickups';
-import { pipePieces, portals, portalHitbox, portalHp, portalsGone, PORTAL_MAX_HP } from './pipes';
 import { player, updatePlayer } from './player';
 import { createWalkSprites, loadSpriteSheet } from './sprites';
 
@@ -54,8 +47,8 @@ function resize(): void {
   canvas.height = viewHeight;
   canvas.style.width = viewWidth * scale + 'px';
   canvas.style.height = viewHeight * scale + 'px';
-  // Resizing the canvas resets this; keep nearest-neighbor so scaled sprites stay crisp
   ctx.imageSmoothingEnabled = false;
+  setViewSize(viewWidth, viewHeight);
 }
 
 // [idle, left leg-cut, right leg-cut] — the cut frames alternate while moving
@@ -69,6 +62,7 @@ async function main(): Promise<void> {
   playerSprites = createWalkSprites(0, 0, PLAYER_WIDTH, PLAYER_HEIGHT);
   bakeEnemyTypes();
   bakePickups();
+  bakeFlowers();
   bakeHud();
 
   generateMap();
@@ -94,24 +88,13 @@ function gameLoop(time: number): void {
   if (debug) {
     debug.handleDebugKeys();
   }
-  updateOverlays(viewWidth, viewHeight);
-  if (scene === SCENE_CUTSCENE) {
-    tickColorWave(dt);
-    updateCutscene(dt);
-  } else if (!isWorldFrozen()) {
-    if (isSequenceActive()) {
-      updateSequence(dt);
-    } else {
-      updatePlayer(dt);
-      const cam = cameraOrigin();
-      updateCombat(dt, cam.x, cam.y, viewWidth, viewHeight);
-      startPendingDeathSequence();
-      if (isSequenceActive()) {
-        updateSequence(dt);
-      } else {
-        updateEnemies(dt, viewWidth, viewHeight);
-      }
-    }
+  updateOverlays(viewWidth, viewHeight, dt);
+  setStickEnabled(scene === SCENE_RUN && !isWorldFrozen());
+  if (!isWorldFrozen()) {
+    updatePlayer(dt);
+    const cam = cameraOrigin();
+    updateCombat(dt, cam.x, cam.y, viewWidth, viewHeight);
+    updateEnemies(dt, viewWidth, viewHeight);
     updatePickups(dt);
     updateExplosions(dt);
   }
@@ -126,68 +109,18 @@ function render(): void {
   // rounding), regardless of view size parity.
   const { x: cameraX, y: cameraY } = cameraOrigin();
 
-  // Tiles: draw only the visible range
-  const firstTileX = Math.floor(cameraX / TILE_SIZE);
-  const firstTileY = Math.floor(cameraY / TILE_SIZE);
-  const lastTileX = Math.floor((cameraX + viewWidth) / TILE_SIZE);
-  const lastTileY = Math.floor((cameraY + viewHeight) / TILE_SIZE);
-  drawTiles(
-    colorWave.active ? tileCanvasesPrev : tileCanvases,
-    cameraX,
-    cameraY,
-    firstTileX,
-    firstTileY,
-    lastTileX,
-    lastTileY
-  );
-  if (colorWave.active) {
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(colorWave.x - cameraX, colorWave.y - cameraY, colorWave.r, 0, Math.PI * 2);
-    ctx.clip();
-    drawTiles(tileCanvases, cameraX, cameraY, firstTileX, firstTileY, lastTileX, lastTileY);
-    ctx.restore();
-  }
-  if (scene === SCENE_CUTSCENE) {
-    drawCutsceneDrain(ctx, cameraX, cameraY, firstTileX, firstTileY, lastTileX, lastTileY);
-  }
+  const firstTileX = Math.floor(cameraX / TILE_W);
+  const firstTileY = Math.floor(cameraY / TILE_H);
+  const lastTileX = Math.floor((cameraX + viewWidth) / TILE_W);
+  const lastTileY = Math.floor((cameraY + viewHeight) / TILE_H);
+  drawTiles(tileCanvases, cameraX, cameraY, firstTileX, firstTileY, lastTileX, lastTileY);
+  drawVeins(ctx, cameraX, cameraY, viewWidth, viewHeight);
+  drawFlowers(ctx, cameraX, cameraY, firstTileX, firstTileY, lastTileX, lastTileY);
 
   drawPickups(ctx, cameraX, cameraY, viewWidth, viewHeight);
 
-  if (scene === SCENE_CUTSCENE) {
-    drawCutsceneWorld(ctx, cameraX, cameraY);
-  } else if (scene === SCENE_RUN) {
-    for (let i = 0; i < portals.length; i++) {
-      if (portalsGone & (1 << i)) {
-        continue;
-      }
-      const piece = portals[i];
-      ctx.drawImage(piece.canvas, Math.floor(piece.x - cameraX), Math.floor(piece.y - cameraY));
-    }
-
-    for (const piece of pipePieces) {
-      ctx.drawImage(piece.canvas, Math.floor(piece.x - cameraX), Math.floor(piece.y - cameraY));
-    }
-
+  if (scene === SCENE_RUN) {
     drawEnemies(ctx, cameraX, cameraY, viewWidth, viewHeight);
-
-    for (let i = 0; i < 7; i++) {
-      const box = portalHitbox(i);
-      if (!box) {
-        continue;
-      }
-      const sx = Math.floor(box.x - cameraX);
-      const sy = Math.floor(box.y - cameraY);
-      ctx.fillStyle = '#000';
-      ctx.fillRect(sx, sy + box.h + 1, box.w, 3);
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(
-        sx + 1,
-        sy + box.h + 2,
-        Math.round((box.w - 2) * (portalHp[i] / PORTAL_MAX_HP)),
-        1
-      );
-    }
   }
 
   const playerScreenX = Math.floor(player.x - cameraX);
@@ -200,8 +133,6 @@ function render(): void {
   drawExplosions(ctx, cameraX, cameraY, viewWidth, viewHeight);
 
   if (scene === SCENE_RUN) {
-    // HP bar: white 1px inner bar in a 1px black outline, outline top 1px below
-    // the sprite; inner width = % of HP
     ctx.fillStyle = '#000';
     ctx.fillRect(playerScreenX, playerScreenY + PLAYER_HEIGHT + 1, PLAYER_WIDTH, 3);
     ctx.fillStyle = '#fff';
@@ -211,10 +142,8 @@ function render(): void {
       Math.round((PLAYER_WIDTH - 2) * (player.hp / player.maxHp)),
       1
     );
-    drawHud(ctx, viewWidth);
-  }
-  if (scene === SCENE_CUTSCENE) {
-    drawCutsceneUi(ctx, viewWidth, viewHeight);
+    drawHud(ctx, viewWidth, viewHeight, runTime);
+    drawStick(ctx, true);
   }
   drawOverlays(ctx, viewWidth, viewHeight);
 
@@ -245,8 +174,8 @@ function drawTiles(
     for (let tx = firstTileX; tx <= lastTileX; tx++) {
       ctx.drawImage(
         canvases[getTile(tx, ty)],
-        Math.floor(tx * TILE_SIZE - cameraX),
-        Math.floor(ty * TILE_SIZE - cameraY)
+        Math.floor(tx * TILE_W - cameraX),
+        Math.floor(ty * TILE_H - cameraY)
       );
     }
   }
@@ -254,13 +183,9 @@ function drawTiles(
 
 function cameraOrigin(): { x: number; y: number } {
   return {
-    x: clamp(player.x + PLAYER_WIDTH / 2 - viewWidth / 2, 0, MAP_WIDTH * TILE_SIZE - viewWidth),
-    y: clamp(player.y + PLAYER_HEIGHT / 2 - viewHeight / 2, 0, MAP_HEIGHT * TILE_SIZE - viewHeight),
+    x: player.x + PLAYER_WIDTH / 2 - viewWidth / 2,
+    y: player.y + PLAYER_HEIGHT / 2 - viewHeight / 2,
   };
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
 }
 
 main();

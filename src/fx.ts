@@ -7,6 +7,7 @@ interface Particle {
   vy: number;
   life: number;
   color: string;
+  size: number;
 }
 
 interface DamagePop {
@@ -19,28 +20,28 @@ interface DamagePop {
 const particles: Particle[] = [];
 const pops: DamagePop[] = [];
 
-const LIFE_MS = 320;
-const SPEED_MIN = 0.04;
-const SPEED_MAX = 0.14;
+const LIFE_MS = 480;
+const SPEED_MIN = 0.08;
+const SPEED_MAX = 0.32;
 const POP_MS = 600;
 const POP_RISE = 12;
 
 /**
- * Tintable burst-of-pixels. Used for enemy deaths, the player taking a hit,
- * and (later) pipe-segment destruction.
+ * Tintable burst-of-pixels. Used for enemy deaths and the player taking a hit.
  */
-export function spawnExplosion(x: number, y: number, color: number, count = 10): void {
+export function spawnExplosion(x: number, y: number, color: number, count = 22): void {
   const css = '#' + color.toString(16).padStart(6, '0');
   for (let i = 0; i < count; i++) {
     const angle = Math.random() * Math.PI * 2;
     const speed = SPEED_MIN + Math.random() * (SPEED_MAX - SPEED_MIN);
     particles.push({
-      x: x + Math.random() - 0.5,
-      y: y + Math.random() - 0.5,
+      x: x + (Math.random() - 0.5) * 8,
+      y: y + (Math.random() - 0.5) * 8,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
-      life: LIFE_MS * (0.7 + Math.random() * 0.3),
+      life: LIFE_MS * (0.65 + Math.random() * 0.45),
       color: css,
+      size: Math.random() < 0.35 ? 3 : 2,
     });
   }
 }
@@ -92,12 +93,12 @@ export function drawExplosions(
   for (const p of particles) {
     const sx = Math.floor(p.x - cameraX);
     const sy = Math.floor(p.y - cameraY);
-    if (sx < 0 || sy < 0 || sx >= viewWidth || sy >= viewHeight) {
+    if (sx + p.size < 0 || sy + p.size < 0 || sx >= viewWidth || sy >= viewHeight) {
       continue;
     }
     ctx.globalAlpha = Math.max(0, p.life / LIFE_MS);
     ctx.fillStyle = p.color;
-    ctx.fillRect(sx, sy, 1, 1);
+    ctx.fillRect(sx, sy, p.size, p.size);
   }
   for (const pop of pops) {
     const t = 1 - pop.life / POP_MS;

@@ -1,12 +1,12 @@
-import { MAP_HEIGHT, MAP_WIDTH, PLAYER_HEIGHT, PLAYER_WIDTH, TILE_SIZE } from './constants';
-import { finalBossSprites } from './enemies';
-import { bakeText, FONT_H, measureText } from './font';
-import { anyKeyPressed, mouse } from './input';
-import { bakeTiles, getTile, tileCanvases } from './map';
-import { colorWave, WAVE_SPEED } from './overlays';
-import { unlockedColors } from './palette';
+import { MAP_HEIGHT, MAP_WIDTH, PLAYER_HEIGHT, PLAYER_WIDTH, TILE_SIZE } from '../constants';
+import { finalBossSprites } from '../enemies';
+import { bakeText, FONT_H, measureText } from '../font';
+import { anyKeyPressed, mouse } from '../input';
+import { bakeTiles, getTile, tileCanvases } from '../map';
+import { colorWave, WAVE_SPEED } from '../overlays';
+import { unlockedColors } from '../palette';
 import { drainCaps, type PipePiece, pipeRuns, plazaPortal, portals } from './pipes';
-import { createSprite, rebakeAllSprites } from './sprites';
+import { createSprite, rebakeAllSprites } from '../sprites';
 
 // Opening cutscene: boss + portal already in the plaza, one line, then pipes
 // drop staggered. Each drop starts that color's drain from the plaza cap.

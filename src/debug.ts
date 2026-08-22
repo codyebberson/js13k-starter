@@ -1,9 +1,8 @@
 import { combatDebug } from './combat';
-import { MAP_HEIGHT, MAP_WIDTH, TILE_SIZE } from './constants';
+import { TILE_H, TILE_W } from './constants';
 import { enemies, enemyHitbox, spawnBurst } from './enemies';
 import { wasPressed } from './input';
-import { bakeTiles, getTile, getTileSolid, TILE_WALL } from './map';
-import { beginFinale, SCENE_RUN, scene } from './overlays';
+import { bakeTiles } from './map';
 import { unlockedColors } from './palette';
 import {
   addXp,
@@ -17,90 +16,21 @@ import {
   setScrap,
   xp,
 } from './pickups';
-import { pipePieces, portalHitbox } from './pipes';
 import { getPlayerHitbox, player } from './player';
-import { createSprite, rebakeAllSprites } from './sprites';
+import { rebakeAllSprites } from './sprites';
 
 let showHitboxes = false;
 
-interface DebugProp {
-  canvas: HTMLCanvasElement;
-  x: number;
-  y: number;
-}
-
-const props: DebugProp[] = [];
-
-// Atlas regions for every non-player sprite on sprites.png (see SPEC.md)
-const ATLAS: { x: number; y: number; w: number; h: number }[] = [
-  { x: 11, y: 0, w: 11, h: 19 }, // Business Boss
-  { x: 0, y: 19, w: 12, h: 23 }, // Portal
-  // Common enemies: 4 across at y=0, 4 across at y=9
-  ...[0, 1, 2, 3].map((i) => ({ x: 22 + i * 7, y: 0, w: 7, h: 9 })),
-  ...[0, 1, 2, 3].map((i) => ({ x: 22 + i * 7, y: 9, w: 7, h: 9 })),
-  // Flowers, crystal, scrap — right of portal
-  ...[0, 1, 2, 3].map((i) => ({ x: 12 + i * 7, y: 19, w: 7, h: 10 })),
-  { x: 40, y: 19, w: 4, h: 6 }, // crystal
-  { x: 44, y: 19, w: 6, h: 6 }, // scrap
-  // Cap, straight, horn — below flowers
-  { x: 12, y: 29, w: 5, h: 8 }, // cap
-  { x: 17, y: 29, w: 9, h: 6 }, // straight
-  { x: 26, y: 29, w: 17, h: 9 }, // unicorn horn
-];
-
-function mulberry32(seed: number): () => number {
-  let state = seed;
-  return () => {
-    state |= 0;
-    state = (state + 0x6d2b79f5) | 0;
-    let t = Math.imul(state ^ (state >>> 15), 1 | state);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 /**
- * Bake sheet sprites (except the player) and scatter copies across grass tiles
- * so we can visually check art/palette while exploring. Dev-only.
+ * Bake sheet sprites (except the player) and scatter copies — unused this pass;
+ * flowers are live world props. Dev-only.
  */
-export function initDebugProps(): void {
-  props.length = 0;
-  const canvases = ATLAS.map((r) => createSprite(r.x, r.y, r.w, r.h));
-  const random = mulberry32(42);
-  const copiesPerSprite = 3;
-
-  for (let i = 0; i < canvases.length; i++) {
-    for (let copy = 0; copy < copiesPerSprite; copy++) {
-      let tx = 0;
-      let ty = 0;
-      for (let attempt = 0; attempt < 40; attempt++) {
-        tx = 2 + Math.floor(random() * (MAP_WIDTH - 4));
-        ty = 2 + Math.floor(random() * (MAP_HEIGHT - 4));
-        // Keep clear of the spawn clearing roughly in the map center
-        const cx = MAP_WIDTH / 2;
-        const cy = MAP_HEIGHT / 2;
-        if ((tx - cx) * (tx - cx) + (ty - cy) * (ty - cy) < 36) {
-          continue;
-        }
-        if (getTile(tx, ty) !== TILE_WALL) {
-          break;
-        }
-      }
-      // Point at which random sprites are scattered around the map
-      // props.push({
-      //   canvas: canvases[i],
-      //   x: tx * TILE_SIZE + Math.floor((TILE_SIZE - canvases[i].width) / 2),
-      //   // Bottom-align to the tile so tall sprites (11x19) sit like the player
-      //   y: ty * TILE_SIZE + TILE_SIZE - canvases[i].height,
-      // });
-    }
-  }
-}
+export function initDebugProps(): void {}
 
 /**
  * Keys 1-7 toggle rainbow unlocks;
  * 8 toggles hitbox outlines; 9 burst-spawns 50 enemies; 0 restores full HP;
- * X grants 5 XP; C grants 50 scrap; K sets HP to 0; F starts the finale.
+ * X grants 5 XP; C grants 50 scrap; K sets HP to 0.
  * Dev-only.
  */
 export function handleDebugKeys(): void {
@@ -129,81 +59,25 @@ export function handleDebugKeys(): void {
   if (wasPressed('KeyK')) {
     player.hp = 0;
   }
-  if (wasPressed('KeyF') && scene === SCENE_RUN) {
-    for (let i = 0; i < 7; i++) {
-      unlockedColors[i] = true;
-    }
-    rebakeAllSprites();
-    bakeTiles();
-    beginFinale();
-  }
 }
 
-/** Scattered sheet props, hitbox outlines, and footer help. Dev-only. */
+/** Hitbox outlines and footer help. Dev-only. */
 export function drawDebugOverlay(
   ctx: CanvasRenderingContext2D,
   cameraX: number,
   cameraY: number,
-  firstTileX: number,
-  firstTileY: number,
+  _firstTileX: number,
+  _firstTileY: number,
   lastTileX: number,
   lastTileY: number,
   viewHeight: number
 ): void {
   const viewLeft = cameraX;
   const viewTop = cameraY;
-  // Approximate visible world bounds from the tile range already computed
-  const viewRight = (lastTileX + 1) * TILE_SIZE;
-  const viewBottom = (lastTileY + 1) * TILE_SIZE;
-
-  for (const prop of props) {
-    if (
-      prop.x + prop.canvas.width < viewLeft ||
-      prop.x > viewRight ||
-      prop.y + prop.canvas.height < viewTop ||
-      prop.y > viewBottom
-    ) {
-      continue;
-    }
-    ctx.drawImage(prop.canvas, Math.floor(prop.x - cameraX), Math.floor(prop.y - cameraY));
-  }
+  const viewRight = (lastTileX + 1) * TILE_W;
+  const viewBottom = (lastTileY + 1) * TILE_H;
 
   if (showHitboxes) {
-    for (let ty = firstTileY; ty <= lastTileY; ty++) {
-      for (let tx = firstTileX; tx <= lastTileX; tx++) {
-        const solid = getTileSolid(tx, ty);
-        if (solid) {
-          debugRect(
-            ctx,
-            Math.floor(solid.x - cameraX),
-            Math.floor(solid.y - cameraY),
-            solid.w,
-            solid.h,
-            '#ff0'
-          );
-        }
-      }
-    }
-    for (const piece of pipePieces) {
-      for (const solid of piece.hits ?? []) {
-        if (
-          solid.x + solid.w < viewLeft ||
-          solid.x > viewRight ||
-          solid.y + solid.h < viewTop ||
-          solid.y > viewBottom
-        ) {
-          continue;
-        }
-        debugRect(
-          ctx,
-          Math.floor(solid.x - cameraX),
-          Math.floor(solid.y - cameraY),
-          solid.w,
-          solid.h,
-          '#0ff'
-        );
-      }
-    }
     for (const enemy of enemies) {
       const box = enemyHitbox(enemy);
       if (
@@ -221,20 +95,6 @@ export function drawDebugOverlay(
         box.w,
         box.h,
         '#f0f'
-      );
-    }
-    for (let i = 0; i < 7; i++) {
-      const box = portalHitbox(i);
-      if (!box) {
-        continue;
-      }
-      debugRect(
-        ctx,
-        Math.floor(box.x - cameraX),
-        Math.floor(box.y - cameraY),
-        box.w,
-        box.h,
-        '#fa0'
       );
     }
     for (const p of pickups) {
@@ -271,7 +131,7 @@ export function drawDebugOverlay(
   ctx.fillStyle = '#fff';
   ctx.font = '5px monospace';
   ctx.fillText(
-    'wasd/arrows: move / 1-7: colors+powers / 8: hitboxes / 9: +50 / 0: heal / x: +xp / c: +scrap / k: kill / f: finale   enemies: ' +
+    'wasd/arrows: move / 1-7: colors / 8: hitboxes / 9: +50 / 0: heal / x: +xp / c: +scrap / k: kill   enemies: ' +
       enemies.length +
       ' hp: ' +
       player.hp +

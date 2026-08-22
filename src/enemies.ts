@@ -1,16 +1,7 @@
-import {
-  MAP_HEIGHT,
-  MAP_WIDTH,
-  PLAYER_HEIGHT,
-  PLAYER_HIT,
-  PLAYER_SPEED,
-  TILE_SIZE,
-  WALK_FRAME_MS,
-} from './constants';
+import { TILE_H, TILE_W } from './constants';
 import { spawnDamageNumber, spawnExplosion } from './fx';
 import { getTile, TILE_WALL } from './map';
-import { dropBossLoot, dropLoot } from './pickups';
-import { pipePieces } from './pipes';
+import { dropLoot } from './pickups';
 import { damagePlayer, getPlayerHitbox } from './player';
 import { createSprite, createWalkSprites, measureContentBox } from './sprites';
 
@@ -31,16 +22,13 @@ const TELEPORT_FACTOR = 1.75;
 const CONTACT_TICK_MS = 500;
 // px/ms — per-type speeds TBD; every type shares this for now (player is 0.05)
 const ENEMY_SPEED = 0.03;
-const FINAL_HP = 200;
-/** `color` on the final boss; regulars use -1. */
-export const FINAL_BOSS = -2;
 const BOB_PERIOD_MS = 900;
-const MINI_HIT_Y = PLAYER_HEIGHT - PLAYER_HIT;
 
-// Coarse separation grid over the whole map
+// Player-centered spatial hash (enemies stay near the camera)
 const GRID_CELL = 22;
-const GRID_W = Math.ceil((MAP_WIDTH * TILE_SIZE) / GRID_CELL);
-const GRID_H = Math.ceil((MAP_HEIGHT * TILE_SIZE) / GRID_CELL);
+const GRID_W = 64;
+const GRID_H = 64;
+const GRID_SPAN = GRID_W * GRID_CELL;
 
 interface EnemyType {
   canvas: HTMLCanvasElement;
@@ -72,57 +60,30 @@ export interface Enemy {
   contactTimer: number;
   /** Remaining freeze (ms). Frozen entities take +25% damage. */
   frozen: number;
-  /** Remaining slow (ms). The final boss gets this instead of freeze. */
+  /** Remaining slow (ms). */
   slowed: number;
-  /** True for the final boss: CC slows instead of freezing. */
+  /** True for the final boss: unused this pass. */
   boss: boolean;
-  /** -1 = regular enemy; FINAL_BOSS for the finale. */
   color: number;
   maxHp: number;
   homeX: number;
   homeY: number;
-  /** Attack cooldown remaining (ms). */
   cd: number;
-  /** Remaining yellow-nova speed burst (ms). */
   boost: number;
   chasing: boolean;
-  /** Bosses only: walked this frame — drives the leg-cut walk cycle. */
   moving: boolean;
 }
 
 export const enemies: Enemy[] = [];
 
-// Tiers allowed to spawn; each destroyed pipe unlocks the next type
+// Tiers allowed to spawn. Progression TBD — paperclips only this pass.
 let unlockedTiers = 1;
 
+/** Director's Cut cutscene still reads this; not drawn in production. */
 export let finalBossSprites: HTMLCanvasElement[] | undefined;
 
-const miniHit = {
-  hitX: 0,
-  hitY: MINI_HIT_Y,
-  hitW: PLAYER_HIT,
-  hitH: PLAYER_HIT,
-  radius: PLAYER_HIT / 2,
-  contactDamage: 5,
-};
-
-let slainFinalBoss = false;
-
-export function takeSlainFinalBoss(): boolean {
-  const slain = slainFinalBoss;
-  slainFinalBoss = false;
-  return slain;
-}
-
-function hitOf(enemy: Enemy): {
-  hitX: number;
-  hitY: number;
-  hitW: number;
-  hitH: number;
-  radius: number;
-  contactDamage: number;
-} {
-  return enemy.boss ? miniHit : enemyTypes[enemy.type];
+function hitOf(enemy: Enemy): EnemyType {
+  return enemyTypes[enemy.type];
 }
 
 /** Bake one canvas + content hitbox per enemy type. Call once after the sheet loads. */
@@ -155,15 +116,9 @@ export function resetEnemies(): void {
   enemies.length = 0;
   spawnTimer = 0;
   unlockedTiers = 1;
-  slainFinalBoss = false;
 }
 
-function makeEnemy(
-  x: number,
-  y: number,
-  hp: number,
-  extra: Partial<Enemy>
-): Enemy {
+function makeEnemy(x: number, y: number, hp: number, extra: Partial<Enemy>): Enemy {
   return {
     x,
     y,
@@ -188,18 +143,6 @@ function makeEnemy(
   };
 }
 
-export function spawnFinalBoss(x: number, y: number): void {
-  enemies.push(
-    makeEnemy(x, y, FINAL_HP, {
-      boss: true,
-      color: FINAL_BOSS,
-      homeX: x,
-      homeY: y,
-      chasing: true,
-    })
-  );
-}
-
 export function updateEnemies(dt: number, viewWidth: number, viewHeight: number): void {
   const spawnRadius = Math.hypot(viewWidth, viewHeight) / 2 + SPAWN_MARGIN;
   lastSpawnRadius = spawnRadius;
@@ -220,7 +163,7 @@ export function updateEnemies(dt: number, viewWidth: number, viewHeight: number)
     const type = hitOf(enemy);
     if (enemy.frozen > 0) {
       enemy.frozen = Math.max(0, enemy.frozen - dt);
-    } else if (!enemy.boss) {
+    } else {
       enemy.bobTime += dt;
     }
     if (enemy.slowed > 0) {
@@ -237,9 +180,7 @@ export function updateEnemies(dt: number, viewWidth: number, viewHeight: number)
     const towardY = playerCenterY - centerY;
     const dist = Math.hypot(towardX, towardY);
 
-    if (!enemy.boss && dist > teleportRadius) {
-      // Too far: teleport back to the spawn ring — unless we're near the cap,
-      // in which case despawn in favor of fresh spawns.
+    if (dist > teleportRadius) {
       if (enemies.length >= ENEMY_CAP - 5) {
         enemies.splice(i, 1);
       } else {
@@ -260,11 +201,6 @@ export function updateEnemies(dt: number, viewWidth: number, viewHeight: number)
       continue;
     }
 
-    if (enemy.boss) {
-      enemy.chasing = true;
-    }
-
-    // Knockback from stomp, decaying independently of the chase
     if (enemy.kbX !== 0 || enemy.kbY !== 0) {
       const kbx = enemy.kbX * dt;
       const kby = enemy.kbY * dt;
@@ -283,13 +219,8 @@ export function updateEnemies(dt: number, viewWidth: number, viewHeight: number)
       }
     }
 
-    const speed = enemy.boss ? PLAYER_SPEED : ENEMY_SPEED;
-
-    // Chase: straight toward the player; walls block, pipes don't
-    const preX = enemy.x;
-    const preY = enemy.y;
     if (dist > 1 && enemy.frozen <= 0) {
-      const step = speed * (enemy.slowed > 0 ? 0.5 : 1) * dt;
+      const step = ENEMY_SPEED * (enemy.slowed > 0 ? 0.5 : 1) * dt;
       const dx = (towardX / dist) * step;
       const dy = (towardY / dist) * step;
       if (!hitsWall(enemy.x + type.hitX + dx, enemy.y + type.hitY, type.hitW, type.hitH)) {
@@ -299,16 +230,8 @@ export function updateEnemies(dt: number, viewWidth: number, viewHeight: number)
         enemy.y += dy;
       }
     }
-    if (enemy.boss) {
-      // Bosses reuse bobTime as the walk-cycle clock (regulars use it to bob)
-      enemy.moving = enemy.x !== preX || enemy.y !== preY;
-      if (enemy.moving) {
-        enemy.bobTime += dt;
-      }
-    }
 
-    // Contact damage: only once the enemy hitbox is >25% inside the player
-    // hitbox, then a tick every 0.5s while it stays there. No player knockback.
+    // Contact damage at >10% of the enemy hitbox; max overlap is capped in separate().
     const hitLeft = enemy.x + type.hitX;
     const hitTop = enemy.y + type.hitY;
     const overlapW =
@@ -318,7 +241,7 @@ export function updateEnemies(dt: number, viewWidth: number, viewHeight: number)
     if (
       overlapW > 0 &&
       overlapH > 0 &&
-      overlapW * overlapH > 0.25 * type.hitW * type.hitH &&
+      overlapW * overlapH > 0.1 * type.hitW * type.hitH &&
       enemy.contactTimer <= 0
     ) {
       damagePlayer(type.contactDamage);
@@ -354,7 +277,7 @@ export function spawnBurst(count: number): void {
   }
 }
 
-/** A ring position whose hitbox avoids walls and pipes, or null after 10 tries. */
+/** A ring position whose hitbox avoids walls, or null after 10 tries. */
 function findSpawnSpot(
   type: EnemyType,
   playerCenterX: number,
@@ -365,10 +288,7 @@ function findSpawnSpot(
     const angle = Math.random() * Math.PI * 2;
     const hitLeft = playerCenterX + Math.cos(angle) * radius - type.hitW / 2;
     const hitTop = playerCenterY + Math.sin(angle) * radius - type.hitH / 2;
-    if (
-      !hitsWall(hitLeft, hitTop, type.hitW, type.hitH) &&
-      !onPipe(hitLeft, hitTop, type.hitW, type.hitH)
-    ) {
+    if (!hitsWall(hitLeft, hitTop, type.hitW, type.hitH)) {
       return { x: hitLeft - type.hitX, y: hitTop - type.hitY };
     }
   }
@@ -376,24 +296,13 @@ function findSpawnSpot(
 }
 
 function hitsWall(x: number, y: number, w: number, h: number): boolean {
-  const x0 = Math.floor(x / TILE_SIZE);
-  const y0 = Math.floor(y / TILE_SIZE);
-  const x1 = Math.floor((x + w - 0.001) / TILE_SIZE);
-  const y1 = Math.floor((y + h - 0.001) / TILE_SIZE);
+  const x0 = Math.floor(x / TILE_W);
+  const y0 = Math.floor(y / TILE_H);
+  const x1 = Math.floor((x + w - 0.001) / TILE_W);
+  const y1 = Math.floor((y + h - 0.001) / TILE_H);
   for (let ty = y0; ty <= y1; ty++) {
     for (let tx = x0; tx <= x1; tx++) {
       if (getTile(tx, ty) === TILE_WALL) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
-function onPipe(x: number, y: number, w: number, h: number): boolean {
-  for (const piece of pipePieces) {
-    for (const solid of piece.hits ?? []) {
-      if (x < solid.x + solid.w && x + w > solid.x && y < solid.y + solid.h && y + h > solid.y) {
         return true;
       }
     }
@@ -405,22 +314,27 @@ function onPipe(x: number, y: number, w: number, h: number): boolean {
 const gridHead = new Int32Array(GRID_W * GRID_H);
 const gridNext = new Int32Array(ENEMY_CAP);
 
-function cellCoord(value: number, max: number): number {
-  return Math.min(max - 1, Math.max(0, Math.floor(value / GRID_CELL)));
+function cellCoord(value: number, origin: number, max: number): number {
+  return Math.min(max - 1, Math.max(0, Math.floor((value - origin) / GRID_CELL)));
 }
 
 /**
  * Pairwise push-apart via the coarse grid: enemies may overlap up to 50%,
  * never fully — centers stay at least half the combined radii apart.
+ * Enemies vs player: max 40% overlap (minDist = 60% of combined radii).
  */
 function separate(): void {
+  const playerHit = getPlayerHitbox();
+  const originX = playerHit.x + playerHit.w / 2 - GRID_SPAN / 2;
+  const originY = playerHit.y + playerHit.h / 2 - GRID_SPAN / 2;
+
   gridHead.fill(-1);
   for (let i = 0; i < enemies.length; i++) {
     const enemy = enemies[i];
     const type = hitOf(enemy);
     const cell =
-      cellCoord(enemy.y + type.hitY + type.hitH / 2, GRID_H) * GRID_W +
-      cellCoord(enemy.x + type.hitX + type.hitW / 2, GRID_W);
+      cellCoord(enemy.y + type.hitY + type.hitH / 2, originY, GRID_H) * GRID_W +
+      cellCoord(enemy.x + type.hitX + type.hitW / 2, originX, GRID_W);
     gridNext[i] = gridHead[cell];
     gridHead[cell] = i;
   }
@@ -430,8 +344,8 @@ function separate(): void {
     const typeA = hitOf(a);
     const ax = a.x + typeA.hitX + typeA.hitW / 2;
     const ay = a.y + typeA.hitY + typeA.hitH / 2;
-    const cellX = cellCoord(ax, GRID_W);
-    const cellY = cellCoord(ay, GRID_H);
+    const cellX = cellCoord(ax, originX, GRID_W);
+    const cellY = cellCoord(ay, originY, GRID_H);
     for (let gy = Math.max(0, cellY - 1); gy <= Math.min(GRID_H - 1, cellY + 1); gy++) {
       for (let gx = Math.max(0, cellX - 1); gx <= Math.min(GRID_W - 1, cellX + 1); gx++) {
         for (let j = gridHead[gy * GRID_W + gx]; j !== -1; j = gridNext[j]) {
@@ -448,7 +362,6 @@ function separate(): void {
             continue;
           }
           if (dist < 0.01) {
-            // Fully stacked: pick an arbitrary axis to split along
             dx = 1;
             dy = 0;
             dist = 1;
@@ -463,13 +376,28 @@ function separate(): void {
     }
   }
 
-  // Separation ignores walls; keep hitboxes inside the wall ring
-  const maxRight = (MAP_WIDTH - 1) * TILE_SIZE;
-  const maxBottom = (MAP_HEIGHT - 1) * TILE_SIZE;
+  const px = playerHit.x + playerHit.w / 2;
+  const py = playerHit.y + playerHit.h / 2;
+  const pRadius = playerHit.w / 2;
   for (const enemy of enemies) {
     const type = hitOf(enemy);
-    enemy.x = Math.min(maxRight - type.hitW - type.hitX, Math.max(TILE_SIZE - type.hitX, enemy.x));
-    enemy.y = Math.min(maxBottom - type.hitH - type.hitY, Math.max(TILE_SIZE - type.hitY, enemy.y));
+    const ex = enemy.x + type.hitX + type.hitW / 2;
+    const ey = enemy.y + type.hitY + type.hitH / 2;
+    const minDist = (type.radius + pRadius) * 0.6;
+    let dx = ex - px;
+    let dy = ey - py;
+    let dist = Math.hypot(dx, dy);
+    if (dist >= minDist) {
+      continue;
+    }
+    if (dist < 0.01) {
+      dx = 1;
+      dy = 0;
+      dist = 1;
+    }
+    const push = (minDist - dist) / dist;
+    enemy.x += dx * push;
+    enemy.y += dy * push;
   }
 }
 
@@ -482,9 +410,6 @@ export function drawEnemies(
 ): void {
   ctx.fillStyle = 'rgba(0,0,0,0.3)';
   for (const enemy of enemies) {
-    if (enemy.boss) {
-      continue;
-    }
     const type = hitOf(enemy);
     const canvas = enemyTypes[enemy.type].canvas;
     const screenX = Math.floor(enemy.x - cameraX);
@@ -517,39 +442,6 @@ export function drawEnemies(
       );
     }
   }
-  for (const enemy of enemies) {
-    if (!enemy.boss) {
-      continue;
-    }
-    const frames = finalBossSprites as HTMLCanvasElement[];
-    const canvas = frames[enemy.moving ? 1 + (((enemy.bobTime / WALK_FRAME_MS) | 0) % 2) : 0];
-    const screenX = Math.floor(enemy.x - cameraX);
-    const screenY = Math.floor(enemy.y - cameraY);
-    if (
-      screenX + canvas.width < 0 ||
-      screenY + canvas.height < 0 ||
-      screenX > viewWidth ||
-      screenY > viewHeight
-    ) {
-      continue;
-    }
-    ctx.drawImage(canvas, screenX, screenY);
-    ctx.fillStyle = '#000';
-    ctx.fillRect(screenX, screenY + canvas.height + 1, canvas.width, 3);
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(
-      screenX + 1,
-      screenY + canvas.height + 2,
-      Math.round((canvas.width - 2) * (enemy.hp / enemy.maxHp)),
-      1
-    );
-    if (enemy.slowed > 0) {
-      ctx.globalAlpha = 0.25;
-      ctx.fillStyle = '#8df';
-      ctx.fillRect(screenX, screenY, canvas.width, canvas.height);
-      ctx.globalAlpha = 1;
-    }
-  }
 }
 
 /** World-space content hitbox (also used by the debug overlay). */
@@ -558,13 +450,8 @@ export function enemyHitbox(enemy: Enemy): { x: number; y: number; w: number; h:
   return { x: enemy.x + type.hitX, y: enemy.y + type.hitY, w: type.hitW, h: type.hitH };
 }
 
-/** Freeze regulars; the final boss is slowed for 2× the duration instead. */
 export function crowdControl(enemy: Enemy, freezeMs: number): void {
-  if (enemy.boss) {
-    enemy.slowed = Math.max(enemy.slowed, freezeMs * 2);
-  } else {
-    enemy.frozen = Math.max(enemy.frozen, freezeMs);
-  }
+  enemy.frozen = Math.max(enemy.frozen, freezeMs);
 }
 
 export function crowdControlAt(x: number, y: number, radius: number, freezeMs: number): void {
@@ -590,22 +477,10 @@ export function hurtEnemyAt(index: number, amount: number): boolean {
   if (enemy.hp > 0) {
     return false;
   }
-  if (enemy.boss) {
-    dropBossLoot(cx, cy);
-    spawnExplosion(cx, cy, 0x000000, 22);
-    spawnExplosion(cx, cy, 0xffffff, 14);
-    slainFinalBoss = true;
-    enemies.splice(index, 1);
-    return true;
-  }
-  killRegularAt(index, cx, cy);
-  return true;
-}
-
-function killRegularAt(index: number, cx: number, cy: number): void {
-  spawnExplosion(cx, cy, 0xb1b1b1, 12);
+  spawnExplosion(cx, cy, 0xb1b1b1, 24);
   dropLoot(cx, cy);
   enemies.splice(index, 1);
+  return true;
 }
 
 export function unlockNextTier(): void {
@@ -623,9 +498,6 @@ export function applyKnockback(enemy: Enemy, fromX: number, fromY: number, speed
     dx = 1;
     dy = 0;
     dist = 1;
-  }
-  if (enemy.boss) {
-    speed *= 0.5;
   }
   enemy.kbX = (dx / dist) * speed;
   enemy.kbY = (dy / dist) * speed;

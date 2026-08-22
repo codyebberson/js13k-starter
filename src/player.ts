@@ -4,12 +4,12 @@ import {
   PLAYER_SPAWN_X,
   PLAYER_SPAWN_Y,
   PLAYER_SPEED,
-  TILE_SIZE,
+  TILE_H,
+  TILE_W,
 } from './constants';
 import { spawnExplosion } from './fx';
-import { isDown } from './input';
+import { isDown, stickX, stickY } from './input';
 import { getTileSolid } from './map';
-import { pipePieces } from './pipes';
 import {
   CON_HP_PER_RANK,
   SHOP_REVIVE,
@@ -109,8 +109,8 @@ export function updatePlayer(dt: number): void {
     return;
   }
 
-  let dx = 0;
-  let dy = 0;
+  let dx = stickX;
+  let dy = stickY;
   if (isDown('ArrowLeft') || isDown('KeyA')) {
     dx -= 1;
   }
@@ -124,13 +124,18 @@ export function updatePlayer(dt: number): void {
     dy += 1;
   }
 
-  player.moving = dx !== 0 || dy !== 0;
+  const len = Math.hypot(dx, dy);
+  player.moving = len > 0.01;
   player.walkTime = player.moving ? player.walkTime + dt : 0;
   if (!player.moving) {
     return;
   }
+  if (len > 1) {
+    dx /= len;
+    dy /= len;
+  }
 
-  const speed = PLAYER_SPEED * speedMul(player.boost) * (dx !== 0 && dy !== 0 ? Math.SQRT1_2 : 1);
+  const speed = PLAYER_SPEED * speedMul(player.boost);
   moveWithCollision(dx * speed * dt, dy * speed * dt);
 }
 
@@ -186,25 +191,15 @@ function forEachOverlappingSolid(
   hit: { x: number; y: number; w: number; h: number },
   visit: (solid: { x: number; y: number; w: number; h: number }) => boolean | undefined
 ): boolean {
-  const x0 = Math.floor(hit.x / TILE_SIZE);
-  const y0 = Math.floor(hit.y / TILE_SIZE);
-  const x1 = Math.floor((hit.x + hit.w - OVERLAP_EPS) / TILE_SIZE);
-  const y1 = Math.floor((hit.y + hit.h - OVERLAP_EPS) / TILE_SIZE);
+  const x0 = Math.floor(hit.x / TILE_W);
+  const y0 = Math.floor(hit.y / TILE_H);
+  const x1 = Math.floor((hit.x + hit.w - OVERLAP_EPS) / TILE_W);
+  const y1 = Math.floor((hit.y + hit.h - OVERLAP_EPS) / TILE_H);
   let found = false;
   for (let ty = y0; ty <= y1; ty++) {
     for (let tx = x0; tx <= x1; tx++) {
       const solid = getTileSolid(tx, ty);
       if (solid && hitsSolid(hit, solid)) {
-        found = true;
-        if (visit(solid)) {
-          return true;
-        }
-      }
-    }
-  }
-  for (const piece of pipePieces) {
-    for (const solid of piece.hits ?? []) {
-      if (hitsSolid(hit, solid)) {
         found = true;
         if (visit(solid)) {
           return true;

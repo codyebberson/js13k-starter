@@ -63,6 +63,8 @@ These rules govern how code is written for this project.
     | Module | What it restores | How to enable |
     |--------|------------------|---------------|
     | [`src/directors-cut/pipe-snake.ts`](src/directors-cut/pipe-snake.ts) | Occupancy-grid snake pipes (S/C shapes). Needs old curve kit + elbow art restored to the sheet. | `portalFromCellRandom` is still here; the walker itself is in git history on this file until curves return. |
+    | [`src/directors-cut/pipes.ts`](src/directors-cut/pipes.ts) | Competition pipes, edge portals, plaza portal | Not imported by production. Re-wire `generatePipes` / portal combat to restore. |
+    | [`src/directors-cut/cutscene.ts`](src/directors-cut/cutscene.ts) | Opening cutscene (pipe drop + drain waves + dialogue) | Not imported by production. Re-wire Start → `startCutscene`. |
 
 All timing in this spec is expressed in **real time** (seconds/minutes), never frames.
 
