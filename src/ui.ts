@@ -176,10 +176,10 @@ function layoutUi(viewWidth: number, viewHeight: number): void {
   }
 
   if (layout === LAYOUT_LIST) {
-    const padX = headingTop ? 6 : 4;
-    const padY = headingTop ? 4 : 3;
+    const padX = 6;
+    const padY = 4;
     const boxH = labels[0].height + padY * 2 + 2;
-    const gap = headingTop ? 4 : 3;
+    const gap = 4;
     let inner = 40;
     for (const label of labels) {
       if (label.width > inner) {
@@ -218,10 +218,11 @@ function layoutUi(viewWidth: number, viewHeight: number): void {
 
   const gap = 4;
   const outer = 8;
-  const innerPad = 4;
+  const padX = 6;
+  const padY = 4;
   const titleH = labels[0].height;
   const bodyH = bodies[0] ? bodies[0].height : 0;
-  const cardH = innerPad * 2 + 2 + titleH + (bodyH ? 4 + bodyH : 0);
+  const cardH = padY * 2 + 2 + titleH + (bodyH ? 4 + bodyH : 0);
   let inner = 48;
   for (let i = 0; i < n; i++) {
     if (labels[i].width > inner) {
@@ -231,7 +232,7 @@ function layoutUi(viewWidth: number, viewHeight: number): void {
       inner = bodies[i].width;
     }
   }
-  const cardW = Math.min(viewWidth - outer * 2, inner + innerPad * 2 + 2);
+  const cardW = Math.min(viewWidth - outer * 2, inner + padX * 2 + 2);
   const blockH = n * cardH + (n - 1) * gap;
   const x = (viewWidth - cardW) >> 1;
   let y: number;
@@ -327,14 +328,21 @@ export function drawUi(ctx: CanvasRenderingContext2D, viewWidth: number, viewHei
 
   for (let i = 0; i < rects.length; i++) {
     const r = rects[i];
-    ctx.fillStyle = i === selected ? '#fff' : '#747474';
+    ctx.fillStyle = '#333333';
     ctx.fillRect(r.x, r.y, r.w, r.h);
     ctx.fillStyle = '#000';
     ctx.fillRect(r.x + 1, r.y + 1, r.w - 2, r.h - 2);
+    if (i === selected) {
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(r.x + 2, r.y + 2, r.w - 4, r.h - 4);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(r.x + 3, r.y + 3, r.w - 6, r.h - 6);
+    }
 
     ctx.save();
     ctx.beginPath();
-    ctx.rect(r.x + 2, r.y + 2, r.w - 4, r.h - 4);
+    const inset = i === selected ? 4 : 2;
+    ctx.rect(r.x + inset, r.y + inset, r.w - inset * 2, r.h - inset * 2);
     ctx.clip();
     const bodyH = bodies[i] ? bodies[i].height : 0;
     const titleX = r.x + ((r.w - labels[i].width) >> 1);
