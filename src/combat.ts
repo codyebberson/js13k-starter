@@ -9,6 +9,7 @@ import {
   hurtEnemyAt,
 } from './enemies';
 import { getTile, TILE_WALL } from './map';
+import { playHorn, playNova } from './music';
 import { RAINBOW_COLORS, unlockedColors } from './palette';
 import { damagePlayer, freezePlayer, getPlayerHitbox, player } from './player';
 import { createSprite } from './sprites';
@@ -222,6 +223,7 @@ export function resetCombat(): void {
 }
 
 function fireHorn(): void {
+  playHorn();
   hornDir = -hornDir;
   const box = hornHitbox();
   for (let i = enemies.length - 1; i >= 0; i--) {
@@ -233,6 +235,9 @@ function fireHorn(): void {
 }
 
 function fireNova(owner: Enemy | null, bits: number): void {
+  if (!owner) {
+    playNova();
+  }
   const amount = owner ? 1 : pwr(STAT_WIS);
   const c = owner ? enemyCenter(owner) : playerCenter();
   const caster = owner || player;
@@ -406,8 +411,8 @@ function updateBolts(dt: number): void {
 export function drawCombat(ctx: CanvasRenderingContext2D, cameraX: number, cameraY: number): void {
   if (hornBeat < 2) {
     if (!hornRight) {
-      hornRight = createSprite(26, 29, HORN_SW, HORN_SH);
-      hornLeft = createSprite(26, 29, HORN_SW, HORN_SH, true);
+      hornRight = createSprite(22, 29, HORN_SW, HORN_SH);
+      hornLeft = createSprite(22, 29, HORN_SW, HORN_SH, true);
     }
     ctx.drawImage(
       (hornDir > 0 ? hornRight : hornLeft) as HTMLCanvasElement,

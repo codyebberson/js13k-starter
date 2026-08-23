@@ -6,6 +6,7 @@ import { resetExplosions } from './fx';
 import { formatScrap, pauseIconContains } from './hud';
 import { mouse, wasPressed } from './input';
 import { bakeTiles } from './map';
+import { playPowerup } from './music';
 import { unlockedColors } from './palette';
 import { consumeLevelUp, resetPickups, scrap, spendScrap } from './pickups';
 import { player, resetPlayer, tryRevive } from './player';
@@ -186,6 +187,7 @@ function openLevelUp(): void {
   if (hand.length === 0) {
     return;
   }
+  playPowerup();
   openCards('LEVEL UP', hand, (index) => {
     const card = hand[index];
     applyPick(card);

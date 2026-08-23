@@ -24,6 +24,7 @@ import {
 } from './overlays';
 import { bakePickups, drawPickups, updatePickups } from './pickups';
 import { player, updatePlayer } from './player';
+import { initMusic } from './music';
 import { createWalkSprites, loadSpriteSheet } from './sprites';
 
 const canvas = document.querySelector('#c') as HTMLCanvasElement;
@@ -68,6 +69,7 @@ async function main(): Promise<void> {
   generateMap();
   bakeTiles();
   initInput(canvas);
+  initMusic();
   initOverlays();
   if (import.meta.env.DEV) {
     debug = await import('./debug');

@@ -1,13 +1,14 @@
 import { TILE_H, TILE_W } from './constants';
 import { spawnDamageNumber, spawnExplosion } from './fx';
 import { getTile, TILE_WALL } from './map';
+import { playHit } from './music';
 import { dropLoot } from './pickups';
 import { damagePlayer, getPlayerHitbox } from './player';
-import { createSprite, createWalkSprites, measureContentBox } from './sprites';
+import { createSprite, measureContentBox } from './sprites';
 
 /**
  * Difficulty ladder (easiest → hardest) mapped to sheet cell index within the
- * 7×9 enemy strip at (22,0). Ladder order: paperclip, pencil, binder clip,
+ * 7×9 enemy strip at (11,0). Ladder order: paperclip, pencil, binder clip,
  * pen, USB stick, stapler, calculator, scissors.
  */
 const TIER_SHEET_INDEX = [4, 1, 0, 2, 6, 3, 5, 7];
@@ -90,7 +91,7 @@ function hitOf(enemy: Enemy): EnemyType {
 export function bakeEnemyTypes(): void {
   for (let tier = 0; tier < TIER_SHEET_INDEX.length; tier++) {
     const sheetIndex = TIER_SHEET_INDEX[tier];
-    const sheetX = 22 + (sheetIndex % 4) * 7;
+    const sheetX = 11 + (sheetIndex % 4) * 7;
     const sheetY = sheetIndex < 4 ? 0 : 9;
     const box = measureContentBox(sheetX, sheetY, 7, 9);
     enemyTypes.push({
@@ -103,9 +104,6 @@ export function bakeEnemyTypes(): void {
       contactDamage: tier + 1,
       hp: 8 + tier * 4,
     });
-  }
-  if (!finalBossSprites) {
-    finalBossSprites = createWalkSprites(11, 0, 11, 19);
   }
 }
 
@@ -473,6 +471,7 @@ export function hurtEnemyAt(index: number, amount: number): boolean {
   const cx = box.x + box.w / 2;
   const cy = box.y + box.h / 2;
   spawnDamageNumber(cx, enemy.y - 6, amount);
+  playHit();
   enemy.hp -= amount;
   if (enemy.hp > 0) {
     return false;

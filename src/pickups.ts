@@ -1,4 +1,5 @@
 import { PLAYER_SPEED, PLAYER_WIDTH } from './constants';
+import { playCrystal } from './music';
 import { getPlayerHitbox } from './player';
 import { createSprite } from './sprites';
 import { SHOP_MAGNET, shopRanks } from './stats';
@@ -83,8 +84,8 @@ export function resetPickups(): void {
 }
 
 export function bakePickups(): void {
-  crystalSprite = createSprite(40, 19, CRYSTAL_W, CRYSTAL_H);
-  scrapSprite = createSprite(44, 19, SCRAP_W, SCRAP_H);
+  crystalSprite = createSprite(12, 29, CRYSTAL_W, CRYSTAL_H);
+  scrapSprite = createSprite(16, 29, SCRAP_W, SCRAP_H);
 }
 
 /** Final-boss chunk: several independent rolls plus guaranteed scrap. */
@@ -152,6 +153,7 @@ export function updatePickups(dt: number): void {
     if (p.x < hit.x + hit.w && p.x + pw > hit.x && p.y < hit.y + hit.h && p.y + ph > hit.y) {
       if (p.kind === PICKUP_CRYSTAL) {
         addXp(1);
+        playCrystal();
       } else {
         scrap += 1;
       }
