@@ -84,23 +84,21 @@ entirely **greyscale**. You set out to destroy those pipes.
 
 - **Genre:** top-down, pixel sprite-based **survivors-like** (Vampire Survivors-like).
   Movement is the only in-run player control; all owned abilities auto-fire.
-- **World:** one single open-world map, freely navigable, rendered with a smooth-scrolling
-  camera that follows the player. Seven colored ground **slices** radiate from a central
-  **white plaza** (see §3 World).
-- **A run:** the player spawns at the **world center** with the starting kit. Colors,
+- **World:** one single **infinite** open-world map, freely navigable, rendered with a
+  smooth-scrolling camera that follows the player. Production ground is a white plaza
+  with a vein overlay (see §3 World). Colored pizza slices and pipes are Director's Cut.
+- **A run:** the player spawns at the **world origin** with the starting kit. Colors,
   powers, XP, and in-run stats **reset** each run. Death ends the run after revives are
   spent. Scrap and shop ranks persist between runs (see Scrap).
-- **Objective:** find all 7 **edge portals**. Each portal has **100 HP**. Destroying a
-  portal destroys its pipe, **releases one color**, and **adds that color's bit to the
-  nova** immediately (the next pulse uses it).
+- **Objective:** find all 7 **ring portals**. Each portal has **100 HP**. Destroying a
+  portal **releases one color** and **adds that color's bit to the nova** immediately
+  (the next pulse uses it).
 - **Order:** portals can be tackled in **any order**. Every portal must be beatable with
   the starting kit (horn + white nova) alone.
-- **Finale:** once all 7 colors are released, the **final boss** re-opens the plaza portal
-  and comes through, triggering the end fight.
-- **Win:** destroy all 7 portals, then beat the final boss. No survival timer — revisit
-  if runs feel too long or too short.
-- **Pipe areas:** fully open — walk up to a portal and attack it. The around-player swarm
-  continues (no sealed arena). Portals do not chase or deal contact damage.
+- **Win:** destroy all 7 portals. No survival timer — revisit if runs feel too long or
+  too short. The plaza **final boss** is deferred (Director's Cut / later pass).
+- **Portal areas:** fully open — walk up to a portal and attack it. The around-player
+  swarm continues (no sealed arena). Portals do not chase or deal contact damage.
 
 ### Title screen and flow
 
@@ -135,26 +133,26 @@ greyscale run-start state).
    Start Speed / Magnet / Revive applied.
 2. **Play:** move only. Enemies spawn around the player. Crystals and scrap magnet in.
 3. **Level-up:** pause, pick 1 card, resume.
-4. **Pipe:** walk to an edge portal, destroy it → portal death sequence (see Enemies),
-   ending in the pipe-unlock overlay. Then that color's nova bit is on.
+4. **Portal:** walk to a ring portal, destroy it → portal death sequence (see Enemies),
+   ending in the color-unlock overlay. Then that color's nova bit is on.
 5. **Death:** if a revive remains, revive **in place** and continue. Otherwise the run ends.
 6. **Win or death overlay**, then the **scrap shop**, then the next run.
 
 **Overlay queue:** if the XP bar fills during a portal death sequence, the level-up card
-shows **after** the pipe-unlock overlay, before resuming. Overlays never overlap.
+shows **after** the color-unlock overlay, before resuming. Overlays never overlap. After
+the 7th portal overlay, **YOU WIN**.
 
 **Pause semantics:** any pause (level-up, pipe overlay, pause menu) freezes **everything** —
 spawns, cooldowns, projectiles, the color wave, and magnet motion.
 
 ### Color release
 
-When a portal is destroyed, its color returns to the world as a **wave radiating outward
-from the portal**, recoloring the world as it passes.
+When a portal is destroyed, that color **unlocks instantly** (tiles, sprites, HUD square,
+nova bit). A **colored pixel shower** falls from that color's HUD square. The color-unlock
+overlay then fires (see the portal death sequence).
 
-> Fallback (if the wave costs too many bytes): the color returns instantly everywhere with a
-> brief celebratory flash.
-
-The pipe-unlock overlay still fires in either case (see the portal death sequence).
+> Director's Cut: a wave radiating outward from the portal, recoloring the world as it
+> passes. Not in this production pass.
 
 ### Player
 
@@ -184,8 +182,8 @@ The pipe-unlock overlay still fires in either case (see the portal death sequenc
   Default **period 2s**. Each owned color is a **bit** on that pulse. Visual: **1px
   concentric strokes**, white innermost (player kit only), then owned colors in
   **ROYGBIV** order (gaps if pipes were taken out of order).
-- **One leading edge.** Effects that apply on the wave hit an entity the first time
-  `prevRadius < dist ≤ radius`. Instant (on fire) vs swept (wavefront):
+- **Persistent disk.** Anyone who overlaps the current radius during the pulse is
+  hit **once** (walk-ins included). Instant (on fire) vs overlap (while the ring is live):
 
   | When | Bits | Effect |
   |------|------|--------|
@@ -332,44 +330,59 @@ Easiest to hardest — contact damage is **1 for the paperclip, +1 per step**:
 | 8 | Scissors | 8 |
 
 A run starts with **paperclips only**; **each destroyed portal unlocks the next type**
-(7 portals → all 8 types in play before the finale). HP and movement per type: TBD.
+(7 portals → all 8 types in play). HP and movement per type: TBD.
+
+#### Elites (mini-bosses)
+
+Office-supply sprites, same 7×9 art as the swarm, drawn at **2×**. No HP bar.
+
+- **10× HP** of their type. Extra crystal/scrap on death (`dropEliteLoot`).
+- **One nova bit** (any of the 7 colors, including yellow/green/violet). The pulse
+  **shows in that color**. Radius is **50%** of the player's nova (**33 px**).
+  Period and effects use **base** amounts (nova PWR = 1).
+- **SPEC-boss crowd control:** cannot be frozen — **slowed** instead, for **2×** the
+  freeze duration. Take **50% knockback** from the player's white nova.
+- **Do not** teleport/despawn with the swarm. **Do not** count toward the 150 cap.
+- **Spawns:**
+  1. **Swarm elites** — ~4% of spawn ticks, any unlocked type, random nova color.
+     Soft cap of **4** live swarm elites.
+  2. **Portal elite** — when a portal dies, one elite of the **newly unlocked type**
+     appears at the portal (random nova color). Always spawns (not gated by the
+     swarm-elite cap).
 
 - **Stretch difficulty modes:** Easy = only the type ladder, no rate scaling; Normal =
   default; Hard = spawn pressure also ramps with time in the run.
 
-#### Edge portals (7)
+#### Ring portals (7)
 
-One per pipe, at the world's edge. The **plaza portal** (cutscene / finale) is **not**
-a target.
+One per color, on a **500 px** circle around spawn. **Red at 12 o'clock**, then
+**ROYGBIV clockwise**. Black edge triangles (canvas path) point at off-screen live portals
+(hidden when that portal is on-screen or destroyed). The **plaza portal**
+(cutscene / finale) is Director's Cut and is **not** a target.
 
 - **HP: 100.** HP bar under the 12×23 portal (same style as the player bar).
 - **Damage:** any player attack that overlaps the portal AABB (horn, nova wavefront,
   fireballs). No contact damage, no nova of their own, no loot on death.
-- The plaza portal used by the finale is not attackable.
 
 #### Portal death sequence
 
-1. Semi-pause: the **player is frozen** (swarm also pauses; pickups still magnet).
-   On-screen regulars are **not** killed.
-2. The **entire pipe vanishes at once**, the portal is removed, and a **pixel explosion**
-   in that slice's color plays where the portal was.
-3. The **recolor wave** runs, originating at the portal.
-4. The **pipe-unlock overlay** shows: color unlocked, power name, what it does (same card
+1. The portal is **removed**. That color's nova bit turns on, the next enemy type
+   unlocks, and a **portal elite** of the new type spawns at the portal.
+2. A **colored pixel shower** falls from that color's HUD square.
+3. The **color-unlock overlay** shows: color name, power name, what it does (same card
    family as level-up).
-5. If the XP bar filled, the **level-up card** shows next. Then play resumes with that
-   color's nova bit on.
+4. If the XP bar filled, the **level-up card** shows next. After the **7th** portal
+   overlay, **YOU WIN**. Then play resumes with that color's nova bit on (or the
+   win screen, if that was the last portal).
 
 #### Final boss
 
-**Business Boss** sprite.
+**Deferred this pass.** After all 7 portals, show **YOU WIN**. The Business Boss /
+plaza-portal finale stays in Director's Cut / a later pass.
 
-- Re-opens the **plaza portal** (right side of the central white plaza) and emerges once
-  all 7 colors are released.
-- **HP: 200.**
+- **HP: 200** (when it returns).
 - Fires **one rainbow nova** (red, orange, green, blue, indigo, violet — **no** white
-  kit stomp, **no** yellow burst) on the default **2s** period. Speed capped at **0.05**
-  (the player's base). Revisit and drop heal/ward bits if the fight drags.
-- **Unleashed:** pursues the player across the whole map; **HP never resets**.
+  kit stomp, **no** yellow burst) on the default **2s** period.
 - Cannot be frozen (slowed 2× freeze duration instead).
 - Takes **50% of normal knockback** from the player's white nova.
 
@@ -515,9 +528,9 @@ No font lives on the sprite sheet. Text uses a **bit-packed 3×5 pixel font**:
 
 ### World / tilemap
 
-- **Tile size: 11px** — matches the player's hitbox. **World: 100×100 tiles
-  (1100×1100px)**; tunable.
-- **Layout** (implemented in `src/map.ts`): seven **"pizza slice"** ground regions radiate
+- **Tile size: 11px** — matches the player's hitbox. Production world is **infinite**
+  white plaza (origin spawn). Legacy **100×100** bounds remain for Director's Cut.
+- **Layout** (Director's Cut / unused this pass): seven **"pizza slice"** ground regions radiate
   from the center, one per pipe, each assigned by nearest portal angle and painted in a
   shaded variant of that pipe's rainbow color. They meet a **lumpy white plaza hub** at
   world center (`hubRadiusTiles`: ~9-tile radius with a 3- and 5-lobe sine wobble — not a
@@ -695,7 +708,7 @@ self-contained work any competent model can execute from this spec.
 Already built (no work needed): bake engine, palette/desaturation, pipes, world slices +
 plaza, camera, player movement/collision (§3), swarm core, starting-kit combat, packed
 font + HUD, menu/overlay framework (pause, level-up draft, stats), unified nova +
-projectiles + freeze, edge portals + pipe destruction + color wave.
+projectiles + freeze, ring portals + color unlock + elites.
 
 | Phase | Work | Model | Why | Complete |
 |-------|------|-------|-----|----------|
@@ -704,9 +717,9 @@ projectiles + freeze, edge portals + pipe destruction + color wave.
 | 3 | **Packed font + HUD:** font renderer + label baking, XP bar, "Level #", scrap counter, color squares, pause icon | Capable | Well-bounded; unblocks every later text UI | ✅ |
 | 4 | **Menu/overlay framework:** shared card/menu component, mouse + keyboard input, pause menu, level-up draft + XP curve, stat application | Flagship | One reusable UI system serving five screens under byte pressure — structure decisions here echo everywhere | ✅ |
 | 5 | **Powers:** unified nova (bitfield, concentric strokes, swept hit), projectiles, freeze/slow, WIS nova PWR | Flagship | One pulse shared by player and finale; color bits replace seven fireables | ✅ |
-| 6 | **Portals + pipe destruction:** 100 HP edge portals, instant pipe remove + portal explosion, **color wave**, unlock overlay | Flagship | The wave's double-bake clip rendering plus the choreographed sequence is the trickiest visual work in the project | ✅ |
+| 6 | **Portals:** 100 HP ring portals (500 px, red at 12 o'clock), edge markers, unlock overlay, HUD color shower, next enemy type | Flagship | Production progression after the infinite-map rewrite | ✅ |
 | 7 | **Run lifecycle + meta:** death/win overlays, revives, localStorage, scrap shop, title screen | Capable | The shop table and persistence rules are precise; mostly wiring the phase-4 framework | ✅ |
-| 8 | **Final boss + finale:** plaza portal, one rainbow nova, map-wide pursuit, win state | Capable | Reuses phase-5 nova and phase-6 patterns; numbers are specified | ✅ |
+| 8 | **Elites + win:** swarm/portal mini-bosses (10× HP, half-size colored nova, boss CC), YOU WIN after 7 portals. Plaza finale deferred | Capable | Reuses phase-5 nova; portal elite is the newly unlocked type | ✅ |
 | 9 | **Opening cutscene + dialogue UI:** panel component, scripted choreography, skip | Flagship | Scripted movement + sequenced pipe/color drain under tight bytes; first candidate on the fallback ladder, so cost judgment matters | ✅ |
 | 10 | **Tuning + stretch + ship:** balance numbers (the §5 TBDs), surge spawns, difficulty modes, audio, final golfing | Flagship | Playtest judgment and byte-tradeoff calls per Rule 5 | |
 

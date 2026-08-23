@@ -88,15 +88,15 @@ export function bakePickups(): void {
   scrapSprite = createSprite(16, 29, SCRAP_W, SCRAP_H);
 }
 
-/** Final-boss chunk: several independent rolls plus guaranteed scrap. */
-export function dropBossLoot(x: number, y: number): void {
-  for (let i = 0; i < 6; i++) {
-    dropLoot(x + (Math.random() - 0.5) * 14, y + (Math.random() - 0.5) * 14);
+/** Elite / mini-boss: extra rolls plus guaranteed scrap. */
+export function dropEliteLoot(x: number, y: number): void {
+  for (let i = 0; i < 3; i++) {
+    dropLoot(x + (Math.random() - 0.5) * 12, y + (Math.random() - 0.5) * 12);
   }
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 2; i++) {
     pickups.push({
-      x: x - SCRAP_W / 2 + (Math.random() - 0.5) * 14,
-      y: y - SCRAP_H / 2 + (Math.random() - 0.5) * 14,
+      x: x - SCRAP_W / 2 + (Math.random() - 0.5) * 12,
+      y: y - SCRAP_H / 2 + (Math.random() - 0.5) * 12,
       kind: PICKUP_SCRAP,
       delay: MAGNET_DELAY_MS,
     });

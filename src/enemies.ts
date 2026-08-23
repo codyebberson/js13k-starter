@@ -2,7 +2,8 @@ import { TILE_H, TILE_W } from './constants';
 import { spawnDamageNumber, spawnExplosion } from './fx';
 import { getTile, TILE_WALL } from './map';
 import { playHit } from './music';
-import { dropLoot } from './pickups';
+import { RAINBOW_COLORS } from './palette';
+import { dropEliteLoot, dropLoot } from './pickups';
 import { damagePlayer, getPlayerHitbox } from './player';
 import { createSprite, measureContentBox } from './sprites';
 
@@ -14,6 +15,9 @@ import { createSprite, measureContentBox } from './sprites';
 const TIER_SHEET_INDEX = [4, 1, 0, 2, 6, 3, 5, 7];
 
 const ENEMY_CAP = 150;
+const MAX_SWARM_ELITES = 4;
+const ELITE_CHANCE = 0.04;
+const ELITE_HP_MUL = 10;
 // Baseline ~2 enemies/sec (surge spawns are a later phase)
 const SPAWN_INTERVAL_MS = 500;
 // Extra distance past the half view diagonal so spawns land just off-screen
@@ -63,8 +67,9 @@ export interface Enemy {
   frozen: number;
   /** Remaining slow (ms). */
   slowed: number;
-  /** True for the final boss: unused this pass. */
+  /** Elite / portal mini-boss. */
   boss: boolean;
+  /** Nova color 0–6, or -1 if this enemy has no nova. */
   color: number;
   maxHp: number;
   homeX: number;
@@ -77,7 +82,7 @@ export interface Enemy {
 
 export const enemies: Enemy[] = [];
 
-// Tiers allowed to spawn. Progression TBD — paperclips only this pass.
+// Tiers allowed to spawn. Starts at paperclips; each portal unlocks the next.
 let unlockedTiers = 1;
 
 /** Director's Cut cutscene still reads this; not drawn in production. */
@@ -109,11 +114,15 @@ export function bakeEnemyTypes(): void {
 
 let spawnTimer = 0;
 let lastSpawnRadius = 200;
+let regulars = 0;
+let swarmElites = 0;
 
 export function resetEnemies(): void {
   enemies.length = 0;
   spawnTimer = 0;
   unlockedTiers = 1;
+  regulars = 0;
+  swarmElites = 0;
 }
 
 function makeEnemy(x: number, y: number, hp: number, extra: Partial<Enemy>): Enemy {
@@ -178,9 +187,10 @@ export function updateEnemies(dt: number, viewWidth: number, viewHeight: number)
     const towardY = playerCenterY - centerY;
     const dist = Math.hypot(towardX, towardY);
 
-    if (dist > teleportRadius) {
-      if (enemies.length >= ENEMY_CAP - 5) {
+    if (!enemy.boss && dist > teleportRadius) {
+      if (regulars >= ENEMY_CAP - 5) {
         enemies.splice(i, 1);
+        regulars--;
       } else {
         const spot = findSpawnSpot(
           enemyTypes[enemy.type],
@@ -218,7 +228,7 @@ export function updateEnemies(dt: number, viewWidth: number, viewHeight: number)
     }
 
     if (dist > 1 && enemy.frozen <= 0) {
-      const step = ENEMY_SPEED * (enemy.slowed > 0 ? 0.5 : 1) * dt;
+      const step = ENEMY_SPEED * (enemy.slowed > 0 ? 0.5 : 1) * (enemy.boost > 0 ? 1.15 : 1) * dt;
       const dx = (towardX / dist) * step;
       const dy = (towardY / dist) * step;
       if (!hitsWall(enemy.x + type.hitX + dx, enemy.y + type.hitY, type.hitW, type.hitH)) {
@@ -251,20 +261,63 @@ export function updateEnemies(dt: number, viewWidth: number, viewHeight: number)
 }
 
 function trySpawn(playerCenterX: number, playerCenterY: number, radius: number): void {
-  if (enemies.length >= ENEMY_CAP) {
-    return;
+  if (regulars < ENEMY_CAP) {
+    spawnAt(playerCenterX, playerCenterY, radius, false);
   }
+  if (Math.random() < ELITE_CHANCE && swarmElites < MAX_SWARM_ELITES) {
+    spawnAt(playerCenterX, playerCenterY, radius, true);
+  }
+}
+
+function spawnAt(
+  playerCenterX: number,
+  playerCenterY: number,
+  radius: number,
+  elite: boolean
+): void {
   const tier = Math.floor(Math.random() * unlockedTiers);
   const type = enemyTypes[tier];
   const spot = findSpawnSpot(type, playerCenterX, playerCenterY, radius);
-  if (spot) {
+  if (!spot) {
+    return;
+  }
+  if (elite) {
+    pushElite(spot.x, spot.y, tier, (Math.random() * 7) | 0, false);
+  } else {
     enemies.push(
       makeEnemy(spot.x, spot.y, type.hp, {
         type: tier,
         bobTime: Math.random() * BOB_PERIOD_MS,
       })
     );
+    regulars++;
   }
+}
+
+function pushElite(x: number, y: number, tier: number, color: number, fromPortal: boolean): void {
+  const type = enemyTypes[tier];
+  const hp = type.hp * ELITE_HP_MUL;
+  enemies.push(
+    makeEnemy(x, y, hp, {
+      type: tier,
+      boss: true,
+      color,
+      maxHp: hp,
+      chasing: fromPortal,
+      cd: 400 + Math.random() * 800,
+      bobTime: Math.random() * BOB_PERIOD_MS,
+    })
+  );
+  if (!fromPortal) {
+    swarmElites++;
+  }
+}
+
+/** Portal death: elite of the newly unlocked tier, at the portal. */
+export function spawnPortalElite(x: number, y: number): void {
+  const tier = Math.min(7, unlockedTiers - 1);
+  const type = enemyTypes[tier];
+  pushElite(x - type.hitX - type.hitW / 2, y - type.hitY - type.hitH / 2, tier, (Math.random() * 7) | 0, true);
 }
 
 /** Dev helper: burst-spawn toward the cap (tree-shaken out of production). */
@@ -412,23 +465,30 @@ export function drawEnemies(
     const canvas = enemyTypes[enemy.type].canvas;
     const screenX = Math.floor(enemy.x - cameraX);
     const screenY = Math.floor(enemy.y - cameraY);
+    const pad = enemy.boss ? canvas.width : 0;
     if (
-      screenX + canvas.width < 0 ||
-      screenY + canvas.height < 0 ||
-      screenX > viewWidth ||
-      screenY > viewHeight
+      screenX + canvas.width + pad < 0 ||
+      screenY + canvas.height + pad < 0 ||
+      screenX - pad > viewWidth ||
+      screenY - pad > viewHeight
     ) {
       continue;
     }
     const down = enemy.frozen > 0 || enemy.bobTime % BOB_PERIOD_MS < BOB_PERIOD_MS / 2;
-    const shadowW = down ? 5 : 3;
+    const scale = enemy.boss ? 2 : 1;
+    const dw = canvas.width * scale;
+    const dh = canvas.height * scale;
+    const drawX = screenX - ((dw - canvas.width) >> 1);
+    const drawY = screenY - (down ? 0 : 1) - ((dh - canvas.height) >> 1);
+    const shadowW = (down ? 5 : 3) * scale;
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.fillRect(
-      screenX + type.hitX + ((type.hitW - shadowW) >> 1),
-      screenY + type.hitY + type.hitH,
+      drawX + type.hitX * scale + ((type.hitW * scale - shadowW) >> 1),
+      drawY + type.hitY * scale + type.hitH * scale,
       shadowW,
       1
     );
-    ctx.drawImage(canvas, screenX, screenY - (down ? 0 : 1));
+    ctx.drawImage(canvas, drawX, drawY, dw, dh);
     if (enemy.frozen > 0) {
       ctx.strokeStyle = '#8df';
       ctx.lineWidth = 1;
@@ -449,7 +509,11 @@ export function enemyHitbox(enemy: Enemy): { x: number; y: number; w: number; h:
 }
 
 export function crowdControl(enemy: Enemy, freezeMs: number): void {
-  enemy.frozen = Math.max(enemy.frozen, freezeMs);
+  if (enemy.boss) {
+    enemy.slowed = Math.max(enemy.slowed, freezeMs * 2);
+  } else {
+    enemy.frozen = Math.max(enemy.frozen, freezeMs);
+  }
 }
 
 export function crowdControlAt(x: number, y: number, radius: number, freezeMs: number): void {
@@ -476,8 +540,16 @@ export function hurtEnemyAt(index: number, amount: number): boolean {
   if (enemy.hp > 0) {
     return false;
   }
-  spawnExplosion(cx, cy, 0xb1b1b1, 24);
-  dropLoot(cx, cy);
+  spawnExplosion(cx, cy, enemy.boss && enemy.color >= 0 ? RAINBOW_COLORS[enemy.color] : 0xb1b1b1, 24);
+  if (enemy.boss) {
+    dropEliteLoot(cx, cy);
+    if (!enemy.chasing) {
+      swarmElites--;
+    }
+  } else {
+    dropLoot(cx, cy);
+    regulars--;
+  }
   enemies.splice(index, 1);
   return true;
 }
@@ -497,6 +569,9 @@ export function applyKnockback(enemy: Enemy, fromX: number, fromY: number, speed
     dx = 1;
     dy = 0;
     dist = 1;
+  }
+  if (enemy.boss) {
+    speed *= 0.5;
   }
   enemy.kbX = (dx / dist) * speed;
   enemy.kbY = (dy / dist) * speed;

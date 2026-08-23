@@ -4,6 +4,7 @@ import { enemies, enemyHitbox, spawnBurst } from './enemies';
 import { wasPressed } from './input';
 import { bakeTiles } from './map';
 import { unlockedColors } from './palette';
+import { damagePortal, portalLive, portals, PORTAL_H, PORTAL_W } from './portals';
 import {
   addXp,
   CRYSTAL_H,
@@ -59,6 +60,33 @@ export function handleDebugKeys(): void {
   if (wasPressed('KeyK')) {
     player.hp = 0;
   }
+  if (wasPressed('KeyV')) {
+    const hit = getPlayerHitbox();
+    const px = hit.x + hit.w / 2;
+    const py = hit.y + hit.h / 2;
+    let best = -1;
+    let bestD = Infinity;
+    for (let i = 0; i < 7; i++) {
+      if (!portalLive(i)) {
+        continue;
+      }
+      const d = Math.hypot(portals[i].x + PORTAL_W / 2 - px, portals[i].y + PORTAL_H / 2 - py);
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    }
+    if (best >= 0) {
+      damagePortal(best, 999);
+    }
+  }
+  if (wasPressed('KeyT')) {
+    const i = portalLive(0) ? 0 : portalLive(1) ? 1 : -1;
+    if (i >= 0) {
+      player.x = portals[i].x + PORTAL_W / 2 - 5;
+      player.y = portals[i].y + PORTAL_H / 2;
+    }
+  }
 }
 
 /** Hitbox outlines and footer help. Dev-only. */
@@ -105,6 +133,19 @@ export function drawDebugOverlay(
         p.kind === 0 ? CRYSTAL_W : SCRAP_W,
         p.kind === 0 ? CRYSTAL_H : SCRAP_H,
         '#8f8'
+      );
+    }
+    for (let i = 0; i < 7; i++) {
+      if (!portalLive(i)) {
+        continue;
+      }
+      debugRect(
+        ctx,
+        Math.floor(portals[i].x - cameraX),
+        Math.floor(portals[i].y - cameraY),
+        PORTAL_W,
+        PORTAL_H,
+        '#fa0'
       );
     }
     const hit = getPlayerHitbox();

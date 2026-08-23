@@ -1,22 +1,26 @@
-// Director's Cut: pipes, portals, cutscene, and the color wave live in
-// src/directors-cut/ (pipes.ts, cutscene.ts). Production is a survival sandbox.
+// Director's Cut: pipes, plaza portal, and the opening cutscene live in
+// src/directors-cut/. Production portals are the 500px ROYGBIV ring.
 import { resetCombat } from './combat';
-import { resetEnemies } from './enemies';
-import { resetExplosions } from './fx';
-import { formatScrap, pauseIconContains } from './hud';
+import { resetEnemies, spawnPortalElite, unlockNextTier } from './enemies';
+import { resetExplosions, spawnHudShower, updateHudShower } from './fx';
+import { colorSquareCenter, formatScrap, pauseIconContains } from './hud';
 import { mouse, wasPressed } from './input';
 import { bakeTiles } from './map';
 import { playPowerup } from './music';
-import { unlockedColors } from './palette';
+import { RAINBOW_COLORS, unlockedColors } from './palette';
 import { consumeLevelUp, resetPickups, scrap, spendScrap } from './pickups';
 import { player, resetPlayer, tryRevive } from './player';
+import { allPortalsGone, resetPortals, takeSlainPortal } from './portals';
 import { loadSave, saveGame } from './save';
 import { rebakeAllSprites } from './sprites';
 import {
   applyPick,
+  COLOR_NAMES,
   CON_HP_PER_RANK,
   type DraftCard,
   dealLevelUpCards,
+  POWER_TITLE,
+  POWER_UNLOCK_BODY,
   resetRunStats,
   SHOP_RANK_CAP,
   SHOP_ROWS,
@@ -199,6 +203,38 @@ function openLevelUp(): void {
   });
 }
 
+function openUnlock(color: number): void {
+  playPowerup();
+  const hex = '#' + RAINBOW_COLORS[color].toString(16).padStart(6, '0');
+  openCards(
+    COLOR_NAMES[color],
+    [{ title: POWER_TITLE[color], body: POWER_UNLOCK_BODY[color] }],
+    () => {
+      closeUi();
+    },
+    hex
+  );
+}
+
+function resolveSlainPortals(viewWidth: number): void {
+  const slain = takeSlainPortal();
+  if (!slain) {
+    return;
+  }
+  unlockedColors[slain.color] = true;
+  rebakeAllSprites();
+  bakeTiles();
+  unlockNextTier();
+  spawnPortalElite(slain.x, slain.y);
+  const sq = colorSquareCenter(slain.color, viewWidth);
+  spawnHudShower(sq.x, sq.y, RAINBOW_COLORS[slain.color]);
+  const color = slain.color;
+  enqueueOverlay(() => openUnlock(color));
+  if (allPortalsGone()) {
+    enqueueOverlay(() => openEnd('YOU WIN'));
+  }
+}
+
 function pumpOverlays(): void {
   if (isUiOpen() || scene !== SCENE_RUN) {
     return;
@@ -234,6 +270,7 @@ export function resetRun(): void {
   resetPickups();
   resetExplosions();
   resetCombat();
+  resetPortals();
   for (let i = 0; i < 7; i++) {
     unlockedColors[i] = false;
   }
@@ -242,6 +279,10 @@ export function resetRun(): void {
 }
 
 export function updateOverlays(viewWidth: number, viewHeight: number, dt: number): void {
+  updateHudShower(dt);
+  if (scene === SCENE_RUN) {
+    resolveSlainPortals(viewWidth);
+  }
   if (titleDraining) {
     titleDrainT += dt;
     while (titleDrainT >= TITLE_DRAIN_MS && titleGrey < TITLE_LETTERS) {

@@ -20,6 +20,8 @@ let timerLabel: HTMLCanvasElement;
 let lastLevel = -1;
 let lastScrap = -1;
 let lastTimer = '';
+/** Centers of the 7 color squares, updated each drawHud. */
+const sqCenters = Array.from({ length: 7 }, () => ({ x: 0, y: 0 }));
 
 export function bakeHud(): void {
   levelPrefix = bakeText('LEVEL', '#fff', SCALE);
@@ -65,6 +67,11 @@ export function pauseIconContains(x: number, y: number, viewHeight: number): boo
     y >= py - PAUSE_PAD &&
     y < py + PAUSE_H + PAUSE_PAD
   );
+}
+
+/** Center of color square `index` (0–6), from the last drawHud. */
+export function colorSquareCenter(index: number, _viewWidth: number): { x: number; y: number } {
+  return sqCenters[index];
 }
 
 /** Screen-space HUD. `runTime` is elapsed run ms. */
@@ -120,6 +127,8 @@ export function drawHud(
   let sqX = barX + Math.floor((XP_W - sqRowW) / 2);
   const sqY = barY + XP_INNER_H + 4 * SCALE;
   for (let i = 0; i < 7; i++) {
+    sqCenters[i].x = sqX + SQ / 2;
+    sqCenters[i].y = sqY + SQ / 2;
     ctx.fillStyle = '#000';
     ctx.fillRect(sqX, sqY, SQ, SQ);
     ctx.fillStyle = unlockedColors[i]

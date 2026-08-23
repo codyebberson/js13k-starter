@@ -9,7 +9,7 @@ import {
 } from './constants';
 import { bakeEnemyTypes, drawEnemies, updateEnemies } from './enemies';
 import { bakeFlowers, drawFlowers } from './flowers';
-import { drawExplosions, updateExplosions } from './fx';
+import { drawExplosions, drawHudShower, updateExplosions } from './fx';
 import { bakeHud, drawHud } from './hud';
 import { clearPressedKeys, drawStick, initInput, setStickEnabled, setViewSize } from './input';
 import { bakeTiles, drawVeins, generateMap, getTile, tileCanvases } from './map';
@@ -23,6 +23,7 @@ import {
   updateOverlays,
 } from './overlays';
 import { bakePickups, drawPickups, updatePickups } from './pickups';
+import { bakePortals, drawPortalMarkers, drawPortals } from './portals';
 import { player, updatePlayer } from './player';
 import { initMusic } from './music';
 import { createWalkSprites, loadSpriteSheet } from './sprites';
@@ -63,6 +64,7 @@ async function main(): Promise<void> {
   playerSprites = createWalkSprites(0, 0, PLAYER_WIDTH, PLAYER_HEIGHT);
   bakeEnemyTypes();
   bakePickups();
+  bakePortals();
   bakeFlowers();
   bakeHud();
 
@@ -122,6 +124,7 @@ function render(): void {
   drawPickups(ctx, cameraX, cameraY, viewWidth, viewHeight);
 
   if (scene === SCENE_RUN) {
+    drawPortals(ctx, cameraX, cameraY, viewWidth, viewHeight);
     drawEnemies(ctx, cameraX, cameraY, viewWidth, viewHeight);
   }
 
@@ -145,6 +148,8 @@ function render(): void {
       1
     );
     drawHud(ctx, viewWidth, viewHeight, runTime);
+    drawPortalMarkers(ctx, cameraX, cameraY, viewWidth, viewHeight);
+    drawHudShower(ctx);
     drawStick(ctx, true);
   }
   drawOverlays(ctx, viewWidth, viewHeight);
