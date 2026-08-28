@@ -1,4 +1,4 @@
-import { PLAYER_HEIGHT, PLAYER_WIDTH, TILE_H, TILE_W } from './constants';
+import { PLAYER_HEIGHT, PLAYER_WIDTH } from './constants';
 import {
   applyKnockback,
   crowdControl,
@@ -8,7 +8,6 @@ import {
   enemyHitbox,
   hurtEnemyAt,
 } from './enemies';
-import { getTile, TILE_WALL } from './map';
 import { playHorn, playNova } from './music';
 import { RAINBOW_COLORS, unlockedColors } from './palette';
 import { damagePlayer, freezePlayer, getPlayerHitbox, player } from './player';
@@ -141,21 +140,6 @@ function overlaps(
   bh: number
 ): boolean {
   return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
-}
-
-function wallBox(x: number, y: number, w: number, h: number): boolean {
-  const x0 = Math.floor(x / TILE_W);
-  const y0 = Math.floor(y / TILE_H);
-  const x1 = Math.floor((x + w - 0.001) / TILE_W);
-  const y1 = Math.floor((y + h - 0.001) / TILE_H);
-  for (let ty = y0; ty <= y1; ty++) {
-    for (let tx = x0; tx <= x1; tx++) {
-      if (getTile(tx, ty) === TILE_WALL) {
-        return true;
-      }
-    }
-  }
-  return false;
 }
 
 function nearestEnemyCenter(fromX: number, fromY: number): { x: number; y: number } | null {
@@ -415,10 +399,6 @@ function updateBolts(dt: number): void {
     const p = bolts[i];
     p.x += p.vx * dt;
     p.y += p.vy * dt;
-    if (wallBox(p.x - hw, p.y - hw, BOLT_SIZE, BOLT_SIZE)) {
-      bolts.splice(i, 1);
-      continue;
-    }
     const sx = p.x - viewX;
     const sy = p.y - viewY;
     if (sx + hw < 0 || sy + hw < 0 || sx - hw > viewW || sy - hw > viewH) {

@@ -1,6 +1,4 @@
-import { TILE_H, TILE_W } from './constants';
 import { spawnDamageNumber, spawnExplosion } from './fx';
-import { getTile, TILE_WALL } from './map';
 import { playHit } from './music';
 import { RAINBOW_COLORS } from './palette';
 import { dropEliteLoot, dropLoot } from './pickups';
@@ -198,13 +196,11 @@ export function updateEnemies(dt: number, viewWidth: number, viewHeight: number)
           playerCenterY,
           spawnRadius
         );
-        if (spot) {
-          enemy.x = spot.x;
-          enemy.y = spot.y;
-          enemy.contactTimer = 0;
-          enemy.kbX = 0;
-          enemy.kbY = 0;
-        }
+        enemy.x = spot.x;
+        enemy.y = spot.y;
+        enemy.contactTimer = 0;
+        enemy.kbX = 0;
+        enemy.kbY = 0;
       }
       continue;
     }
@@ -212,12 +208,8 @@ export function updateEnemies(dt: number, viewWidth: number, viewHeight: number)
     if (enemy.kbX !== 0 || enemy.kbY !== 0) {
       const kbx = enemy.kbX * dt;
       const kby = enemy.kbY * dt;
-      if (!hitsWall(enemy.x + type.hitX + kbx, enemy.y + type.hitY, type.hitW, type.hitH)) {
-        enemy.x += kbx;
-      }
-      if (!hitsWall(enemy.x + type.hitX, enemy.y + type.hitY + kby, type.hitW, type.hitH)) {
-        enemy.y += kby;
-      }
+      enemy.x += kbx;
+      enemy.y += kby;
       const decay = Math.exp(-dt / 80);
       enemy.kbX *= decay;
       enemy.kbY *= decay;
@@ -229,14 +221,8 @@ export function updateEnemies(dt: number, viewWidth: number, viewHeight: number)
 
     if (dist > 1 && enemy.frozen <= 0) {
       const step = ENEMY_SPEED * (enemy.slowed > 0 ? 0.5 : 1) * (enemy.boost > 0 ? 1.15 : 1) * dt;
-      const dx = (towardX / dist) * step;
-      const dy = (towardY / dist) * step;
-      if (!hitsWall(enemy.x + type.hitX + dx, enemy.y + type.hitY, type.hitW, type.hitH)) {
-        enemy.x += dx;
-      }
-      if (!hitsWall(enemy.x + type.hitX, enemy.y + type.hitY + dy, type.hitW, type.hitH)) {
-        enemy.y += dy;
-      }
+      enemy.x += (towardX / dist) * step;
+      enemy.y += (towardY / dist) * step;
     }
 
     // Contact damage at >10% of the enemy hitbox; max overlap is capped in separate().
@@ -278,9 +264,6 @@ function spawnAt(
   const tier = Math.floor(Math.random() * unlockedTiers);
   const type = enemyTypes[tier];
   const spot = findSpawnSpot(type, playerCenterX, playerCenterY, radius);
-  if (!spot) {
-    return;
-  }
   if (elite) {
     pushElite(spot.x, spot.y, tier, (Math.random() * 7) | 0, false);
   } else {
@@ -328,37 +311,17 @@ export function spawnBurst(count: number): void {
   }
 }
 
-/** A ring position whose hitbox avoids walls, or null after 10 tries. */
+/** A ring position around the player. No wall retry — the map has no solids. */
 function findSpawnSpot(
   type: EnemyType,
   playerCenterX: number,
   playerCenterY: number,
   radius: number
-): { x: number; y: number } | null {
-  for (let attempt = 0; attempt < 10; attempt++) {
-    const angle = Math.random() * Math.PI * 2;
-    const hitLeft = playerCenterX + Math.cos(angle) * radius - type.hitW / 2;
-    const hitTop = playerCenterY + Math.sin(angle) * radius - type.hitH / 2;
-    if (!hitsWall(hitLeft, hitTop, type.hitW, type.hitH)) {
-      return { x: hitLeft - type.hitX, y: hitTop - type.hitY };
-    }
-  }
-  return null;
-}
-
-function hitsWall(x: number, y: number, w: number, h: number): boolean {
-  const x0 = Math.floor(x / TILE_W);
-  const y0 = Math.floor(y / TILE_H);
-  const x1 = Math.floor((x + w - 0.001) / TILE_W);
-  const y1 = Math.floor((y + h - 0.001) / TILE_H);
-  for (let ty = y0; ty <= y1; ty++) {
-    for (let tx = x0; tx <= x1; tx++) {
-      if (getTile(tx, ty) === TILE_WALL) {
-        return true;
-      }
-    }
-  }
-  return false;
+): { x: number; y: number } {
+  const angle = Math.random() * Math.PI * 2;
+  const hitLeft = playerCenterX + Math.cos(angle) * radius - type.hitW / 2;
+  const hitTop = playerCenterY + Math.sin(angle) * radius - type.hitH / 2;
+  return { x: hitLeft - type.hitX, y: hitTop - type.hitY };
 }
 
 // Linked-list spatial hash: gridHead per cell, gridNext per enemy index

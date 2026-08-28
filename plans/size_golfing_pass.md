@@ -4,16 +4,16 @@ overview: Canonical size plan merging both prior golf/cut audits. Close the ~1,8
 todos:
   - id: baseline
     content: Clean npm run build; record advzip baseline; start SIZE_LOG.md
-    status: pending
+    status: completed
   - id: bulk-golf
     content: "Track 1 bulk: dead code + identical-behavior packing (pixelScale, unused tremolo, music drum/bass rows, audio wrappers, shop packing). Measure after each cluster; revert zip regressions."
-    status: pending
+    status: completed
   - id: one-at-a-time-golf
     content: "Track 1 risky golf: powers/pipes/collision/cutscene/UI — implement ONE change at a time, live-test, then sign off or revert."
     status: pending
   - id: report-gap
     content: Report remaining gap vs ranked cut menu; wait for which rungs to spend
-    status: pending
+    status: completed
   - id: cut-menu
     content: "Track 2 (only if still over, after explicit pick): one cut at a time, live-test each, then sign off."
     status: pending
@@ -28,9 +28,19 @@ Merged from [size_golfing_pass-fable.plan.md](size_golfing_pass-fable.plan.md) a
 
 ---
 
+## Status snapshot (2026-08-28)
+
+**Under budget.** Live zip: **12,006 B / 13,312 (90.19%). Headroom 1,306 B.** See [SIZE_LOG.md](../SIZE_LOG.md).
+
+Audio is **back in** the production zip (SoundBox `smallplayer.ts` + song + 5 SFX). Pipes / opening cutscene are Director's Cut. Infinite white map has no solids — player snap + enemy/bolt wall tests were unique no-ops and were deleted (restore from git if walls return).
+
+We are **not over**. Track 2 is optional. Highest-confidence leftover reclaim if we need zip later: **Start SPD shop row**, **damage numbers**, then last-resort **instant wave** / remaining cutscene motion.
+
+---
+
 ## Status snapshot (2026-08-20, after Dye Hard / plaza cutscene / shop cuts)
 
-Checked against production `src/` (not `_sample-game/`). The Track 1 workflow (baseline zip, `SIZE_LOG.md`, measured clusters) has **not** been run. Items below are “already in the tree,” not “already measured.”
+Checked against production `src/` (not `_sample-game/`). Historical — Track 1 has since been run; see the 2026-08-28 snapshot above.
 
 ### Already landed (not a measured golf pass — shipped as design)
 

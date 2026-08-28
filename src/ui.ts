@@ -102,7 +102,7 @@ export function rebakeRainbowTitle(): void {
 }
 
 export function setTitleStory(text: string): void {
-  storyText = text.toUpperCase();
+  storyText = text;
   storyLines = [];
   storyBakeW = 0;
 }

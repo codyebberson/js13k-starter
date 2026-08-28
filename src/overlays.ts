@@ -74,10 +74,6 @@ export function isWorldFrozen(): boolean {
   return scene !== SCENE_RUN || isUiOpen() || titleDraining;
 }
 
-export function isSequenceActive(): boolean {
-  return false;
-}
-
 function openTitle(): void {
   pauseOpen = false;
   titleDraining = false;

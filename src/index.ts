@@ -12,7 +12,7 @@ import { bakeFlowers, drawFlowers } from './flowers';
 import { drawExplosions, drawHudShower, updateExplosions } from './fx';
 import { bakeHud, drawHud } from './hud';
 import { clearPressedKeys, drawStick, initInput, setStickEnabled, setViewSize } from './input';
-import { bakeTiles, drawVeins, generateMap, getTile, tileCanvases } from './map';
+import { bakeTiles, drawVeins, getTile, tileCanvases } from './map';
 import {
   drawOverlays,
   initOverlays,
@@ -68,7 +68,6 @@ async function main(): Promise<void> {
   bakeFlowers();
   bakeHud();
 
-  generateMap();
   bakeTiles();
   initInput(canvas);
   initMusic();

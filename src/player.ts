@@ -4,12 +4,9 @@ import {
   PLAYER_SPAWN_X,
   PLAYER_SPAWN_Y,
   PLAYER_SPEED,
-  TILE_H,
-  TILE_W,
 } from './constants';
 import { spawnExplosion } from './fx';
 import { isDown, stickX, stickY } from './input';
-import { getTileSolid } from './map';
 import {
   CON_HP_PER_RANK,
   SHOP_REVIVE,
@@ -136,106 +133,10 @@ export function updatePlayer(dt: number): void {
   }
 
   const speed = PLAYER_SPEED * speedMul(player.boost);
-  moveWithCollision(dx * speed * dt, dy * speed * dt);
-}
-
-const OVERLAP_EPS = 1e-6;
-
-// Axis-separated movement: slide along walls, snap flush to the tile edge
-function moveWithCollision(dx: number, dy: number): void {
-  moveAxis(dx, 0);
-  moveAxis(0, dy);
-}
-
-function moveAxis(dx: number, dy: number): void {
-  if (dx === 0 && dy === 0) {
-    return;
-  }
-  const newX = player.x + dx;
-  const newY = player.y + dy;
-  if (!boxCollides(newX, newY)) {
-    player.x = newX;
-    player.y = newY;
-    return;
-  }
-
-  const hit = getPlayerHitbox(newX, newY);
-  if (dx > 0) {
-    player.x = newX + (minOverlappingTileEdge(hit, 'left') - (hit.x + hit.w));
-  } else if (dx < 0) {
-    player.x = newX + (maxOverlappingTileEdge(hit, 'right') - hit.x);
-  } else if (dy > 0) {
-    player.y = newY + (minOverlappingTileEdge(hit, 'top') - (hit.y + hit.h));
-  } else {
-    player.y = newY + (maxOverlappingTileEdge(hit, 'bottom') - hit.y);
-  }
-}
-
-function boxCollides(x: number, y: number): boolean {
-  return forEachOverlappingSolid(getPlayerHitbox(x, y), () => true);
-}
-
-function hitsSolid(
-  hit: { x: number; y: number; w: number; h: number },
-  solid: { x: number; y: number; w: number; h: number }
-): boolean {
-  return (
-    hit.x < solid.x + solid.w - OVERLAP_EPS &&
-    hit.x + hit.w > solid.x + OVERLAP_EPS &&
-    hit.y < solid.y + solid.h - OVERLAP_EPS &&
-    hit.y + hit.h > solid.y + OVERLAP_EPS
-  );
-}
-
-function forEachOverlappingSolid(
-  hit: { x: number; y: number; w: number; h: number },
-  visit: (solid: { x: number; y: number; w: number; h: number }) => boolean | undefined
-): boolean {
-  const x0 = Math.floor(hit.x / TILE_W);
-  const y0 = Math.floor(hit.y / TILE_H);
-  const x1 = Math.floor((hit.x + hit.w - OVERLAP_EPS) / TILE_W);
-  const y1 = Math.floor((hit.y + hit.h - OVERLAP_EPS) / TILE_H);
-  let found = false;
-  for (let ty = y0; ty <= y1; ty++) {
-    for (let tx = x0; tx <= x1; tx++) {
-      const solid = getTileSolid(tx, ty);
-      if (solid && hitsSolid(hit, solid)) {
-        found = true;
-        if (visit(solid)) {
-          return true;
-        }
-      }
-    }
-  }
-  return found;
-}
-
-function minOverlappingTileEdge(
-  hit: { x: number; y: number; w: number; h: number },
-  edge: 'left' | 'top'
-): number {
-  let best = Infinity;
-  forEachOverlappingSolid(hit, (solid) => {
-    const value = edge === 'left' ? solid.x : solid.y;
-    if (value < best) {
-      best = value;
-    }
-  });
-  return best;
-}
-
-function maxOverlappingTileEdge(
-  hit: { x: number; y: number; w: number; h: number },
-  edge: 'right' | 'bottom'
-): number {
-  let best = -Infinity;
-  forEachOverlappingSolid(hit, (solid) => {
-    const value = edge === 'right' ? solid.x + solid.w : solid.y + solid.h;
-    if (value > best) {
-      best = value;
-    }
-  });
-  return best;
+  // Infinite white map has no solids (`getTileSolid` is always null). Tile-edge
+  // snap is in git history; restore it when walls return (Director's Cut).
+  player.x += dx * speed * dt;
+  player.y += dy * speed * dt;
 }
 
 /** 11x11 hitbox aligned to the bottom of the 11x19 sprite (head sticks out above). */

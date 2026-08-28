@@ -12,7 +12,7 @@ export const PORTAL_CELLS: [number, number][] = [
   [5, 9],
 ];
 
-/** Ground tiles 0–6 match RAINBOW_COLORS (unused bake helpers this pass). */
+/** Index of the white ground stamp. Slice tiles 0–6 / walls are Director's Cut. */
 export const TILE_WHITE = 7;
 export const TILE_WALL = 8;
 
@@ -86,29 +86,20 @@ export function snapshotTiles(): void {
 }
 
 export function bakeTiles(): void {
-  for (let tile = 0; tile <= TILE_WALL; tile++) {
-    let canvas = tileCanvases[tile];
-    if (!canvas) {
-      canvas = document.createElement('canvas');
-      tileCanvases[tile] = canvas;
-    }
-    canvas.width = TILE_W;
-    canvas.height = TILE_H;
-    const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
-    if (tile === TILE_WALL) {
-      paintWall(ctx);
-    } else if (tile === TILE_WHITE) {
-      paintGround(ctx, TILE_W, TILE_H, '#ffffff', '#cecece');
-    } else {
-      paintGround(
-        ctx,
-        TILE_W,
-        TILE_H,
-        cssColor(rainbowShade(tile, 0.8)),
-        cssColor(RAINBOW_COLORS[tile])
-      );
-    }
+  let canvas = tileCanvases[TILE_WHITE];
+  if (!canvas) {
+    canvas = document.createElement('canvas');
+    tileCanvases[TILE_WHITE] = canvas;
   }
+  canvas.width = TILE_W;
+  canvas.height = TILE_H;
+  paintGround(
+    canvas.getContext('2d') as CanvasRenderingContext2D,
+    TILE_W,
+    TILE_H,
+    '#ffffff',
+    '#cecece'
+  );
   for (let color = 0; color < 7; color++) {
     let canvas = veinCanvases[color];
     if (!canvas) {
@@ -180,12 +171,4 @@ function paintGround(
   for (let i = 0; i < 8; i++) {
     ctx.fillRect(Math.floor(random() * w), Math.floor(random() * h), 2, 1);
   }
-}
-
-function paintWall(ctx: CanvasRenderingContext2D): void {
-  ctx.fillStyle = '#747474';
-  ctx.fillRect(0, 0, TILE_W, TILE_H);
-  ctx.fillStyle = '#cecece';
-  const inset = 2;
-  ctx.fillRect(inset, inset, TILE_W - inset * 2, TILE_H - inset * 2);
 }

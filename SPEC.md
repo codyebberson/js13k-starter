@@ -24,29 +24,29 @@ These rules govern how code is written for this project.
 5. **Measure, don't guess.** Run `npm run build` regularly and track the zipped size. Byte
    costs are unintuitive post-compression; decisions between approaches should be settled by
    building both when practical.
-6. **Budget awareness.** Rough working budget (revise as the project matures):
-   - Sprite sheet PNG: ~1 KB
+6. **Budget awareness.** Track the live number in [`SIZE_LOG.md`](SIZE_LOG.md).
+   **2026-08-28: advzip 12,006 B (90.19% of 13,312). Headroom 1,306 B.**
+   Rough working split (revise as the project matures):
+   - Sprite sheet PNG: ~0.5 KB packed
    - Engine (canvas/bake/input/loop): ~2–3 KB
-   - World + pipes: ~1.5 KB
+   - World (infinite white + veins + flowers): ~1–1.5 KB
    - Swarm / combat / powers: ~1.5–2 KB
    - UI (packed font, HUD, menus, cards, shop): ~1.5 KB
-   - Cutscene + dialogue: ~0.8–1.2 KB
-   - Audio (ZzFX/ZzFXM, deferred): ~1.5–2 KB
-   - This sums close to (or over) the 13 KB cap — expect to spend from the **fallback
+   - Audio (SoundBox player + song + 5 SFX): in the zip (was deferred, now shipped)
+   - This is currently **under** the cap. If we go over, spend from the **fallback
      ladder**, cheapest pain first:
      1. Opening cutscene becomes static dialogue panels (no choreographed movement).
-        **Partial:** walk-on / march / extra dialogue are gone; pipe-drop + per-pipe
-        drain waves remain.
+        **Spent:** walk-on / march / extra dialogue, then the whole cutscene moved
+        to Director's Cut. Title drain + story line remain.
      2. Cut surge spawns and the stretch difficulty modes. **Never shipped (0 B).**
      3. Drop scrap-shop rows (never the whole shop). **Done for this build:** Luck,
         shop STR/DEX/CON/WIS, XP Gain, Scrap Gain. **Still in:** Start HP, Start Speed,
         Magnet, Revive.
      4. Straighten the procedural pipes — **done, then further cut:** competition
-        pipes are portal stubs (3 straights + cap, inward) plus capped debris in
-        each color slice. No curves. The old snake walker is Director's Cut
-        (rule 10); restoring it also needs the removed elbow art.
-     5. Shrink the audio reservation. **Done:** production ships no ZzFX/ZzFXM; synth
-        lives only in `_sample-game/`.
+        pipes and the snake walker are Director's Cut (rule 10). Production is the
+        500 px portal ring on an infinite white map.
+     5. Shrink the audio reservation. **Re-spent:** production ships `smallplayer.ts`
+        (SoundBox) + `music.ts` + `pickup-sfx.ts`. `_sample-game/` still has ZzFX.
 7. **No external dependencies at runtime.** Everything is hand-rolled or vendored (ZzFX/ZzFXM
    already vendored in the sample).
 8. **TypeScript strictness stays on.** Types are free — they're erased at build time.
@@ -65,6 +65,7 @@ These rules govern how code is written for this project.
     | [`src/directors-cut/pipe-snake.ts`](src/directors-cut/pipe-snake.ts) | Occupancy-grid snake pipes (S/C shapes). Needs old curve kit + elbow art restored to the sheet. | `portalFromCellRandom` is still here; the walker itself is in git history on this file until curves return. |
     | [`src/directors-cut/pipes.ts`](src/directors-cut/pipes.ts) | Competition pipes, edge portals, plaza portal | Not imported by production. Re-wire `generatePipes` / portal combat to restore. |
     | [`src/directors-cut/cutscene.ts`](src/directors-cut/cutscene.ts) | Opening cutscene (pipe drop + drain waves + dialogue) | Not imported by production. Re-wire Start → `startCutscene`. |
+    | Tile wall tests (git history on `player.ts` / `combat.ts` / `enemies.ts`) | Player tile-edge snap, enemy chase/knockback wall stops, bolt-vs-wall cull | Infinite white map has no solids (`getTile` is always white). Restore when walls return. |
 
 All timing in this spec is expressed in **real time** (seconds/minutes), never frames.
 
@@ -427,16 +428,10 @@ plaza-portal finale stays in Director's Cut / a later pass.
 
 ### Audio
 
-- **Deferred.** ZzFX (SFX) and ZzFXM (music) are vendored and available; audio design decided
-  once core gameplay is working.
+- **Shipped.** SoundBox player (`src/smallplayer.ts`) + looping song + five Voxby SFX
+  (`src/pickup-sfx.ts`): crystal pickup, powerup/unlock, nova, enemy/portal hit, horn.
+  Unlocks on the first pointer/key gesture. ZzFX/ZzFXM remain in `_sample-game/` only.
   - *Idea to explore:* a music track that gains instruments/richness as colors return.
-  - SFX:
-    - Pipe laying and pipe destruction: zzfx(...[1.64,,150,,.08,.13,4,2.84,.1,.1,10,,.07,1.7,1,.1,.09,.8,.08]); // Hit 66
-    - Success (beat a boss): zzfx(...[.6,,334,.07,1,.16,,.9,,,200,.06,.06,,,,,.64,.24,,297]); // Powerup 1077
-    - Pickup (crystal/scrap) AND button move/click: zzfx(...[,,507,,.04,.11,1,,,,250,.04,,,,,,.74,.02,,-1380]); // Pickup 1044
-    - Nova attacks: zzfx(...[,,91,.04,.04,.51,5,.1,-2,5,,,,1.9,,.9,,.44,.15]); // Explosion 1071
-    - Enemy is hit: zzfx(...[5,,266,.02,.05,.04,,3,-1,,,,,1.2,2.1,,,.88,.07,,1914]); // Hit 1046
-    - Horn attack: zzfx(...[,,172,.01,.04,.16,4,.2,8,,,,,1.5,,.1,,.45,.06]); // Hit 1082
 
 ---
 
@@ -733,6 +728,7 @@ Notes:
   packed-font lines. No plaza shard.
 - Shop is 4 rows (Start HP / Start Speed / Magnet / Revive). Luck, shop stats,
   and XP/Scrap Gain are cut. Horn is a 1.5s left/right lash, not facing-aimed.
-- Audio stays deferred (not in the production zip) per §2. Remaining fallback
-  spend if still over: Start Speed row, remaining cutscene
+- Audio is in the production zip (SoundBox + SFX). **2026-08-28 zip: 12,006 B /
+  13,312, headroom 1,306 B** — see [`SIZE_LOG.md`](SIZE_LOG.md). Remaining fallback
+  spend if we go over: Start Speed row, damage numbers, remaining cutscene
   motion / instant wave (last resort). Pipe death is already instant (one explosion).

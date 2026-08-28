@@ -26,7 +26,6 @@ const sfxBufs: (AudioBuffer | undefined)[] = [];
 let progress = 0;
 let pumping = false;
 let playing = false;
-const sfxPlayed = [0, 0, 0, 0, 0];
 
 function pump(): void {
   if (pumping) {
@@ -71,7 +70,6 @@ function playSfx(id: number): void {
   src.buffer = sfxBufs[id];
   src.connect(ac.destination);
   src.start();
-  sfxPlayed[id]++;
 }
 
 export function playCrystal(): void {
@@ -109,7 +107,6 @@ export function initMusic(): void {
       musicState: () => ({
         playing,
         progress,
-        sfxPlayed: sfxPlayed.slice(),
         state: ctx?.state,
         t: ctx?.currentTime,
       }),
